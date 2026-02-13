@@ -1,0 +1,309 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Polymarket Wallet Viewer</title>
+    <link rel="stylesheet" href="style.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Polymarket Wallet Viewer</h1>
+            <p class="subtitle">Datos reales de la API: activity, closed-positions, positions, value</p>
+        </header>
+        <!-- Theme toggle (fixed top-right) -->
+        <button id="themeToggle" class="theme-toggle" title="Toggle dark/light">🌙</button>
+
+        <div class="wallets-preset">
+            <div class="preset-buttons">
+                <button class="preset-btn" data-wallet="0x43ffbff51e4a96da689b51742e436b977c3ff0e0">
+                    Wallet #1
+                    <span class="wallet-address">0x43ff...f0e0</span>
+                </button>
+                <button class="preset-btn" data-wallet="0x7e0e8bd852cab23f2d5baf332d4e72e9e203bb64">
+                    Wallet #2
+                    <span class="wallet-address">0x7e0e...bb64</span>
+                </button>
+            </div>
+            
+            <div class="search-divider">
+                <span>o ingresa una dirección personalizada</span>
+            </div>
+
+            <div class="search-section">
+                <input type="text" id="walletInput" placeholder="0x..." value="0x...">
+                <button id="searchBtn">Buscar Wallet</button>
+            </div>
+        </div>
+
+        <div class="error-message" id="errorMessage"></div>
+
+        <div class="dashboard">
+            <div class="cards-container">
+                <div class="profile-card">
+                    <!-- Columna Izquierda: Imagen, Nombre, Trades -->
+                    <div class="profile-left">
+                        <img id="profileImage" class="profile-avatar" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 120 120'%3E%3Crect fill='%233b82f6' width='120' height='120'/%3E%3Ctext x='50%25' y='50%25' text-anchor='middle' dy='.3em' fill='white' font-size='48' font-family='Arial'%3E%3F%3C/text%3E%3C/svg%3E" alt="Profile">
+                        <div class="profile-name" id="profileName">Nombre</div>
+                        <div class="stat-item">
+                            <div class="stat-label">Trades</div>
+                            <div class="stat-number" id="profileTrades">—</div>
+                        </div>
+                    </div>
+
+                    <!-- Columna Media: Rango, PNL, Volumen -->
+                    <div class="profile-middle">
+                        <div class="stat-item">
+                            <div class="stat-label">Rango</div>
+                            <div class="stat-number" id="profileRank">—</div>
+                        </div>
+                        <div class="stat-item">
+                            <div class="stat-label">PNL</div>
+                            <div class="stat-number" id="profilePnl">—</div>
+                        </div>
+                        <div class="stat-item">
+                            <div class="stat-label">Volumen</div>
+                            <div class="stat-number" id="profileVol">—</div>
+                        </div>
+                    </div>
+
+                    <!-- Columna Derecha: Tabs de Período -->
+                    <div class="profile-right">
+                        <div class="leaderboard-tabs">
+                            <button class="lb-tab-button" data-period="DAY">📅 Dia</button>
+                            <button class="lb-tab-button" data-period="WEEK">📆 Semana</button>
+                            <button class="lb-tab-button" data-period="MONTH">📋 Mes</button>
+                            <button class="lb-tab-button active" data-period="ALL">🏆 All</button>
+                        </div>
+                    </div>
+
+                    <!-- Fila de Wallet: Ocupa todo el ancho -->
+                    <div class="profile-wallet-row">
+                        <span class="wallet-label">wallet</span>
+                        <span class="wallet-value" id="profileWallet">—</span>
+                    </div>
+                </div>
+
+                <div class="analysis-card">
+                    <div class="analysis-header">
+                        <h3>📈 Operaciones cerradas</h3>
+                        <div class="analysis-total" id="analysisTotalValue">—</div>
+                    </div>
+                    <div class="analysis-content">
+                        <div class="chart-wrapper">
+                            <canvas id="closedChart" style="max-height: 200px;"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="tabs main-tabs">
+                <button class="tab-button active" data-tab="positions">📊 Posiciones</button>
+                <button class="tab-button" data-tab="activity">🔄 Actividad</button>
+                <button class="tab-button" data-tab="closed">📉 Cerradas</button>
+            </div>
+            
+            <div class="tabs raw-tabs">
+                <button class="tab-button" data-tab="raw-positions">📦 RAW Posiciones</button>
+                <button class="tab-button" data-tab="raw-activity">📦 RAW Actividad</button>
+                <button class="tab-button" data-tab="raw-closed">📦 RAW Cerradas</button>
+            </div>
+
+			<!-- POSICIONES - Con el orden exacto que pediste -->
+			<div id="positions" class="tab-content active">
+				<div class="table-container">
+					<table>
+						<thead>
+							<tr>
+								<th>Slug</th>
+								<th>Outcome</th>
+								<th class="text-right">Size</th>
+								<th class="text-right">Avg Price</th>
+								<th class="text-right">Initial Value</th>
+								<th class="text-right">Cash PnL</th>
+								<th class="text-right">If Win</th>
+							</tr>
+						</thead>
+						<tbody id="positionsBody">
+							<tr>
+								<td colspan="7" class="empty-state">
+									Ingresa una wallet para ver sus posiciones
+								</td>
+							</tr>
+						</tbody>
+					</table>
+				</div>
+			</div>
+			<!-- ACTIVIDAD - Con Price movido entre Outcome y Shares -->
+			<div id="activity" class="tab-content">
+				<div class="table-container">
+					<table>
+						<thead>
+							<tr>
+								<th>Fecha</th>
+								<th>Title</th>
+								<th>Side</th>
+								<th>Outcome</th>
+								<th class="text-right">Price</th>
+								<th class="text-right">Shares</th>
+								<th class="text-right">USDC</th>
+							</tr>
+						</thead>
+						<tbody id="activityBody">
+							<tr>
+								<td colspan="7" class="empty-state">
+									Ingresa una wallet para ver su actividad
+								</td>
+							</tr>
+						</tbody>
+					</table>
+				</div>
+			</div>
+
+            <div id="closed" class="tab-content">
+			<div class="table-container">
+				<table>
+					<thead>
+						<tr>
+							<th>Fecha cierre</th>
+							<th>Slug</th>
+							<th>Outcome</th>
+							<th class="text-right">Inv. ($)</th>
+							<th class="text-right">Avg Price</th>
+							<th class="text-right">Shares</th>
+							<th class="text-right">Realized PNL</th>
+						</tr>
+					</thead>
+					<tbody id="closedBody">
+						<tr>
+							<td colspan="7" class="empty-state">
+								Ingresa una wallet para ver sus posiciones cerradas
+							</td>
+						</tr>
+					</tbody>
+				</table>
+			</div>
+		</div>
+
+            <div id="raw-positions" class="tab-content">
+                <div class="raw-header">
+                    <h3>📦 /positions - RAW JSON</h3>
+                    <p class="raw-subtitle">Respuesta exacta del endpoint de posiciones abiertas</p>
+                </div>
+                <div id="rawPositionsContent" class="raw-container">
+                    <pre class="raw-empty">Busca una wallet para ver los datos RAW</pre>
+                </div>
+            </div>
+
+            <div id="raw-activity" class="tab-content">
+                <div class="raw-header">
+                    <h3>📦 /activity - RAW JSON</h3>
+                    <p class="raw-subtitle">Respuesta exacta del endpoint de actividad</p>
+                </div>
+                <div id="rawActivityContent" class="raw-container">
+                    <pre class="raw-empty">Busca una wallet para ver los datos RAW</pre>
+                </div>
+            </div>
+
+            <div id="raw-closed" class="tab-content">
+                <div class="raw-header">
+                    <h3>📦 /closed-positions - RAW JSON</h3>
+                    <p class="raw-subtitle">Respuesta exacta del endpoint de posiciones cerradas</p>
+                </div>
+                <div id="rawClosedContent" class="raw-container">
+                    <pre class="raw-empty">Busca una wallet para ver los datos RAW</pre>
+                </div>
+            </div>
+        </div>
+
+        <div class="loading" id="loading">
+            <div class="spinner"></div>
+            <span>Cargando datos...</span>
+        </div>
+        <div id="debugPanel"></div>
+    </div>
+
+    <!-- SCRIPTS EN ORDEN CORRECTO -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.js"></script>
+    <script>
+        // Debug panel
+        window.debugLogs = [];
+        const originalLog = console.log;
+        const originalError = console.error;
+        
+        console.log = function(...args) {
+            originalLog(...args);
+            window.debugLogs.push('LOG: ' + args.join(' '));
+            updateDebugPanel();
+        };
+        
+        console.error = function(...args) {
+            originalError(...args);
+            window.debugLogs.push('ERROR: ' + args.join(' '));
+            updateDebugPanel();
+        };
+        
+        function updateDebugPanel() {
+            const panel = document.getElementById('debugPanel');
+            if (panel) {
+                panel.innerHTML = '<div style="padding: 10px; background: #f0f4f8; border: 1px solid #e2e8f0; border-radius: 4px; margin-top: 20px; max-height: 200px; overflow-y: auto;"><strong>Debug Logs:</strong><pre style="margin: 10px 0; font-size: 11px; white-space: pre-wrap; word-break: break-word;">' + window.debugLogs.slice(-20).join('\n') + '</pre></div>';
+            }
+        }
+    </script>
+    <script src="api.js"></script>
+    <script src="activity.js"></script>
+    <script src="closed.js"></script>
+    <script src="main.js"></script>
+    
+    <script>
+        // Auto-load first wallet on page load for testing
+        window.addEventListener('load', () => {
+            setTimeout(() => {
+                if (window.app) {
+                    console.log('App ready, loading test wallet...');
+                    window.app.loadWalletData('0x43ffbff51e4a96da689b51742e436b977c3ff0e0');
+                } else {
+                    console.error('App not initialized');
+                }
+            }, 500);
+        });
+
+        // Theme toggle: persist in localStorage and apply 'dark' class on body and html
+        (function() {
+            const btn = document.getElementById('themeToggle');
+            console.log('Theme toggle init, button found?', !!btn);
+            if (!btn) return;
+
+            function applyTheme(theme) {
+                console.log('Applying theme:', theme);
+                if (theme === 'dark') {
+                    document.body.classList.add('dark');
+                    document.documentElement.classList.add('dark');
+                    document.documentElement.setAttribute('data-theme', 'dark');
+                    btn.textContent = '☀️';
+                    btn.title = 'Cambiar a modo claro';
+                } else {
+                    document.body.classList.remove('dark');
+                    document.documentElement.classList.remove('dark');
+                    document.documentElement.setAttribute('data-theme', 'light');
+                    btn.textContent = '🌙';
+                    btn.title = 'Cambiar a modo oscuro';
+                }
+            }
+
+            const saved = localStorage.getItem('theme') || 'light';
+            applyTheme(saved);
+
+            btn.addEventListener('click', () => {
+                const current = document.body.classList.contains('dark') ? 'dark' : 'light';
+                const next = current === 'dark' ? 'light' : 'dark';
+                console.log('Theme toggle clicked — current:', current, 'next:', next);
+                localStorage.setItem('theme', next);
+                applyTheme(next);
+            });
+        })();
+    </script>
+</body>
+</html>
