@@ -1057,9 +1057,7 @@ td .text-right:has(>) {
     font-weight: normal;
 }
 
-td .text-right ( {
-    color: #475569;
-}
+/* selector inválido eliminado (corregido) */
 
 /* Mejorar legibilidad de porcentajes */
 .text-right.pnl-positive,
@@ -1268,9 +1266,10 @@ html[data-theme="dark"] input, html[data-theme="dark"] button, body.dark input, 
     border-color: #122136 !important;
 }
 .market-total {
-    font-size: 0.85rem;
+    font-size: 1.05rem; /* aumentado para mejor legibilidad */
     margin-left: 0.5rem;
     font-weight: 700;
+    vertical-align: middle;
 }
 .market-total.pnl-positive {
     color: #16a34a;
