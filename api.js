@@ -30,22 +30,68 @@ class PolymarketAPI {
         });
     }
 
+    async fetchAllClosedPositions(user, pageSize = 50) {
+        const results = [];
+        let offset = 0;
+        const maxPages = 20; // proteger contra bucles infinitos, hasta 1000 posiciones
+
+        for (let page = 0; page < maxPages; page++) {
+            const pageData = await this.fetchFromAPI('/closed-positions', {
+                user: user,
+                limit: pageSize,
+                offset: offset,
+                sortBy: 'TIMESTAMP',
+                sortDirection: 'DESC'
+            });
+
+            if (!Array.isArray(pageData)) {
+                throw new Error('Respuesta de closed-positions inesperada: se esperaba un array');
+            }
+
+            results.push(...pageData);
+            if (pageData.length < pageSize) {
+                break;
+            }
+            offset += pageSize;
+        }
+
+        return results;
+    }
+
     async getClosedPositions(user) {
-        return this.fetchFromAPI('/closed-positions', {
-            user: user,
-            limit: 1000,
-            sortBy: 'TIMESTAMP',
-            sortDirection: 'DESC'
-        });
+        return this.fetchAllClosedPositions(user, 50);
+    }
+
+    async fetchAllActivity(user, pageSize = 50) {
+        const results = [];
+        let offset = 0;
+        const maxPages = 20; // proteger contra bucles infinitos, hasta 1000 actividades
+
+        for (let page = 0; page < maxPages; page++) {
+            const pageData = await this.fetchFromAPI('/activity', {
+                user: user,
+                limit: pageSize,
+                offset: offset,
+                sortBy: 'TIMESTAMP',
+                sortDirection: 'DESC'
+            });
+
+            if (!Array.isArray(pageData)) {
+                throw new Error('Respuesta de activity inesperada: se esperaba un array');
+            }
+
+            results.push(...pageData);
+            if (pageData.length < pageSize) {
+                break;
+            }
+            offset += pageSize;
+        }
+
+        return results;
     }
 
     async getActivity(user) {
-        return this.fetchFromAPI('/activity', {
-            user: user,
-            limit: 100,
-            sortBy: 'TIMESTAMP',
-            sortDirection: 'DESC'
-        });
+        return this.fetchAllActivity(user, 50);
     }
 
     async getTotalValue(user) {
