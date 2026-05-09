@@ -12,13 +12,279 @@ body {
 }
 
 .container {
-    max-width: 1400px;
-    margin: 0 auto;
-    padding: 2rem 1.5rem;
+    max-width: 1600px;
+    margin: 0;
+    padding: 0.8rem 0.6rem;
+}
+
+.app-shell {
+    display: grid;
+    grid-template-columns: minmax(200px, 240px) minmax(0, 1fr);
+    gap: 0.6rem;
+    align-items: start;
+}
+
+.sidebar {
+    background: white;
+    border: 1px solid #e2e8f0;
+    border-radius: 18px;
+    padding: 1rem;
+    box-shadow: 0 14px 32px rgba(15, 23, 42, 0.06);
+}
+
+.sidebar-header {
+    margin-bottom: 0.9rem;
+}
+
+.sidebar-title-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+.sidebar-header h2 {
+    font-size: 1.1rem;
+    margin-bottom: 0;
+}
+
+.favorite-edit-btn {
+    border: 1px solid #e2e8f0;
+    border-radius: 999px;
+    background: #f8fafc;
+    color: #1e293b;
+    padding: 0.45rem 0.85rem;
+    font-size: 0.85rem;
+    cursor: pointer;
+    transition: background 0.2s, border-color 0.2s;
+}
+
+.favorite-edit-btn:hover,
+.favorite-edit-btn.active {
+    background: #eef2ff;
+    border-color: #93c5fd;
+}
+
+
+.favorite-add {
+    display: flex;
+    gap: 0.75rem;
+    margin-bottom: 1.25rem;
+}
+
+.favorite-add input {
+    flex: 1;
+    padding: 0.85rem 1rem;
+    border: 1px solid #e2e8f0;
+    border-radius: 10px;
+    outline: none;
+    font-family: monospace;
+    background: #f8fafc;
+}
+
+.favorite-add input:focus {
+    border-color: #3b82f6;
+    background: white;
+}
+
+.favorite-add button {
+    padding: 0.85rem 1rem;
+    border-radius: 10px;
+    border: none;
+    background: #2563eb;
+    color: white;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.2s;
+}
+
+.favorite-add button:hover {
+    background: #1d4ed8;
+}
+
+.favorites-list {
+    display: grid;
+    gap: 0.75rem;
+}
+
+.favorite-item {
+    display: grid;
+    gap: 0.55rem;
+    padding: 0.8rem 0.9rem;
+    border: 1px solid #e2e8f0;
+    border-radius: 14px;
+    background: #f8fafc;
+    transition: background 0.2s, transform 0.2s;
+}
+
+.favorite-item:hover {
+    background: #eef2ff;
+    transform: translateY(-1px);
+}
+
+.favorite-item.dragging {
+    opacity: 0.6;
+}
+
+.favorite-item.drag-over {
+    border-color: #3b82f6;
+    background: #eff6ff;
+}
+
+.favorite-card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 0.6rem;
+}
+
+.favorite-card-header.edit-mode {
+    align-items: center;
+}
+
+.favorite-name-input {
+    width: 100%;
+    padding: 0.65rem 0.75rem;
+    border: 1px solid #cbd5e1;
+    border-radius: 12px;
+    font-family: inherit;
+    font-size: 0.95rem;
+    background: white;
+    color: #0f172a;
+}
+
+.favorite-name-input:focus {
+    outline: none;
+    border-color: #3b82f6;
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.12);
+}
+
+.favorite-drag-handle {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 34px;
+    height: 34px;
+    border-radius: 12px;
+    background: white;
+    color: #475569;
+    font-size: 1rem;
+    border: 1px solid #e2e8f0;
+    cursor: grab;
+}
+
+.favorite-name {
+    font-weight: 700;
+    color: #0f172a;
+    line-height: 1.2;
+}
+
+.favorite-address {
+    color: #475569;
+    font-family: monospace;
+    font-size: 0.9rem;
+}
+
+.favorite-actions {
+    display: flex;
+    gap: 0.5rem;
+}
+
+.favorite-action-icon {
+    border: none;
+    background: #ffffff;
+    color: #0f172a;
+    font-size: 0.95rem;
+    line-height: 1;
+    border-radius: 10px;
+    padding: 0.45rem 0.5rem;
+    box-shadow: 0 6px 14px rgba(15, 23, 42, 0.08);
+    cursor: pointer;
+    transition: transform 0.15s ease, background 0.15s ease;
+}
+
+.favorite-action-icon:hover {
+    transform: translateY(-1px);
+    background: #eef2ff;
+}
+
+.favorite-card-header .favorite-action-icon {
+    padding: 0.45rem 0.55rem;
+}
+
+.favorite-toggle-btn {
+    border: 1px solid #cbd5e1;
+    border-radius: 999px;
+    background: #f8fafc;
+    color: #475569;
+    width: 38px;
+    height: 38px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1rem;
+    cursor: pointer;
+    transition: background 0.2s, color 0.2s, transform 0.2s;
+}
+
+.favorite-toggle-btn:hover {
+    background: #eef2ff;
+}
+
+.favorite-toggle-btn.active {
+    color: #f59e0b;
+    background: #fffbeb;
+    border-color: #fbbf24;
+}
+
+.favorite-item button:hover {
+    color: #dc2626;
+}
+
+.favorite-item .favorite-label {
+    font-family: monospace;
+    color: #0f172a;
+    word-break: break-all;
+}
+
+.favorite-empty {
+    color: #64748b;
+    font-size: 0.95rem;
+    line-height: 1.6;
+}
+
+.page-header {
+    margin-bottom: 0.6rem;
+}
+
+.page-header h1 {
+    font-size: 1.6rem;
+    margin-bottom: 0.25rem;
+}
+
+.search-card {
+    background: white;
+    border: 1px solid #e2e8f0;
+    border-radius: 18px;
+    padding: 0.9rem;
+    box-shadow: 0 12px 28px rgba(15, 23, 42, 0.05);
+    margin-bottom: 0.6rem;
+}
+
+.search-card-title {
+    font-weight: 600;
+    margin-bottom: 0.6rem;
+    color: #0f172a;
+}
+
+.main-content {
+    display: flex;
+    flex-direction: column;
+    gap: 0.8rem;
 }
 
 header {
-    margin-bottom: 2rem;
+    margin-bottom: 0;
 }
 
 h1 {
@@ -263,6 +529,58 @@ h1 {
     gap: 0.4rem;
 }
 
+.profile-wallet-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding-top: 0.75rem;
+    border-top: 1px solid #cbd5e1;
+    gap: 1rem;
+    width: 100%;
+}
+
+.profile-wallet-row .wallet-label {
+    display: block;
+    color: #475569;
+    font-size: 0.8rem;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    margin-bottom: 0.25rem;
+}
+
+.profile-wallet-row .wallet-value {
+    display: inline-block;
+    font-family: monospace;
+    color: #0f172a;
+    background: white;
+    padding: 0.35rem 0.75rem;
+    border-radius: 8px;
+    border: 1px solid #e2e8f0;
+}
+
+.wallet-copy-container {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.copy-wallet-btn {
+    background: none;
+    border: none;
+    cursor: pointer;
+    font-size: 1rem;
+    padding: 0;
+    transition: transform 0.2s;
+}
+
+.copy-wallet-btn:hover {
+    transform: scale(1.2);
+}
+
+.copy-wallet-btn:active {
+    transform: scale(0.95);
+}
+
 .stat-item {
     background: white;
     padding: 0.5rem;
@@ -374,6 +692,33 @@ h1 {
     align-items: center;
 }
 
+.analysis-controls {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.chart-mode-btn {
+    border: 1px solid #cbd5e1;
+    background: #ffffff;
+    color: #0f172a;
+    padding: 0.4rem 0.7rem;
+    border-radius: 999px;
+    font-size: 0.85rem;
+    cursor: pointer;
+    transition: background 0.2s ease, border-color 0.2s ease;
+}
+
+.chart-mode-btn:hover {
+    background: #e2e8f0;
+    border-color: #94a3b8;
+}
+
+.chart-mode-btn:focus {
+    outline: 2px solid #3b82f6;
+    outline-offset: 2px;
+}
+
 .analysis-header h3 {
     font-size: 1rem;
     font-weight: 600;
@@ -461,6 +806,165 @@ h1 {
 
 .tab-content.active {
     display: block;
+}
+
+.calendar-header-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 1rem;
+    margin-bottom: 1rem;
+}
+
+.calendar-header-title h3 {
+    margin: 0;
+    font-size: 1.1rem;
+}
+
+.calendar-controls {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.calendar-nav-btn {
+    border: 1px solid #cbd5e1;
+    background: white;
+    border-radius: 12px;
+    width: 38px;
+    height: 38px;
+    cursor: pointer;
+    font-size: 1rem;
+    color: #475569;
+    transition: background 0.2s, border-color 0.2s;
+}
+
+.calendar-nav-btn:hover {
+    background: #f8fafc;
+    border-color: #94a3b8;
+}
+
+.calendar-title {
+    font-weight: 600;
+    color: #0f172a;
+}
+
+.calendar-panel {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 220px;
+    gap: 1rem;
+    align-items: start;
+}
+
+.calendar-table-wrapper {
+    overflow-x: auto;
+    background: white;
+    border: 1px solid #e2e8f0;
+    border-radius: 18px;
+    padding: 1rem;
+}
+
+.calendar-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.calendar-table th,
+.calendar-table td {
+    text-align: center;
+    padding: 0.6rem;
+    border: none;
+}
+
+.calendar-table th {
+    color: #475569;
+    font-weight: 600;
+    font-size: 0.9rem;
+}
+
+.calendar-day {
+    min-height: 86px;
+    border-radius: 14px;
+    border: 1px solid #e2e8f0;
+    background: #f8fafc;
+    vertical-align: top;
+    padding: 0.75rem;
+}
+
+.calendar-empty {
+    background: transparent;
+}
+
+.calendar-day-number {
+    font-weight: 700;
+    margin-bottom: 0.45rem;
+}
+
+.calendar-day-profit {
+    font-size: 0.82rem;
+    line-height: 1.3;
+    white-space: normal;
+}
+
+.calendar-day.positive {
+    background: #96ebb5 !important;
+    border-color: #22c55e !important;
+    color: #0f172a;
+    box-shadow: inset 0 0 0 1px rgba(34, 197, 94, 0.25);
+}
+
+.calendar-day.positive .calendar-day-number,
+.calendar-day.positive .calendar-day-profit {
+    color: #0f172a;
+}
+
+.calendar-day.negative {
+    background: #fee2e2;
+    border-color: #fca5a5;
+}
+
+.calendar-week-summary {
+    background: white;
+    border: 1px solid #e2e8f0;
+    border-radius: 18px;
+    padding: 1rem;
+}
+
+.calendar-week-summary h4 {
+    margin-top: 0;
+    margin-bottom: 0.85rem;
+    font-size: 1rem;
+}
+
+.week-summary-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.55rem 0;
+    border-bottom: 1px solid #f1f5f9;
+}
+
+.week-summary-row:last-child {
+    border-bottom: none;
+}
+
+.week-summary-row.month-total {
+    padding-top: 0.75rem;
+    padding-bottom: 0.75rem;
+    border-bottom: 1px solid #cbd5e1 !important;
+    font-weight: 700;
+    background: #f8fafc;
+    margin: 0 -1rem 0.5rem -1rem;
+    padding-left: 1rem;
+    padding-right: 1rem;
+}
+
+.calendar-week-summary .pnl-positive {
+    color: #16a34a;
+}
+
+.calendar-week-summary .pnl-negative {
+    color: #dc2626;
 }
 
 .table-container {
@@ -1205,6 +1709,7 @@ body.dark .theme-toggle { background: #e2e8f0; color: #0f172a; }
 :root[data-theme="dark"] th,
 :root[data-theme="dark"] td {
     color: var(--text) !important;
+    background: #0b1220 !important;
     border-color: rgba(255,255,255,0.03) !important;
 }
 :root[data-theme="dark"] code {
@@ -1224,6 +1729,182 @@ body.dark .theme-toggle { background: #e2e8f0; color: #0f172a; }
     background: var(--panel) !important;
     color: var(--text) !important;
     border-color: var(--border) !important;
+}
+
+:root[data-theme="dark"] .cards-container,
+:root[data-theme="dark"] .value-card,
+:root[data-theme="dark"] .leaderboard-card,
+:root[data-theme="dark"] .profile-wallet-row,
+:root[data-theme="dark"] .wallet-value,
+:root[data-theme="dark"] .stat-item,
+:root[data-theme="dark"] .lb-tab-button,
+:root[data-theme="dark"] .chart-mode-btn,
+:root[data-theme="dark"] .calendar-table,
+:root[data-theme="dark"] .favorite-item,
+:root[data-theme="dark"] .favorite-add,
+:root[data-theme="dark"] .favorite-add input,
+:root[data-theme="dark"] .favorite-add button,
+:root[data-theme="dark"] .favorite-name-input,
+:root[data-theme="dark"] .favorite-toggle-btn,
+:root[data-theme="dark"] .copy-wallet-btn {
+    background: #0f172a !important;
+    border-color: #122136 !important;
+    color: #e6eef8 !important;
+}
+:root[data-theme="dark"] .lb-tab-button:hover {
+    background: #111827 !important;
+    border-color: #1f2937 !important;
+}
+
+:root[data-theme="dark"] .lb-tab-button.active {
+    background: #2563eb !important;
+    color: #ffffff !important;
+    border-color: #2563eb !important;
+}
+
+:root[data-theme="dark"] .chart-mode-btn:hover {
+    background: #172944 !important;
+    border-color: #1f2937 !important;
+}
+
+:root[data-theme="dark"] .calendar-table th,
+:root[data-theme="dark"] .calendar-table td {
+    background: #0b1220 !important;
+}
+
+:root[data-theme="dark"] .calendar-day {
+    background: #0f172a !important;
+    border-color: #122136 !important;
+}
+
+:root[data-theme="dark"] .calendar-day.negative {
+    background: #4c1111 !important;
+    border-color: #761f1f !important;
+}
+
+:root[data-theme="dark"] .calendar-day.positive {
+    background: rgba(34, 197, 94, 0.18) !important;
+    border-color: #22c55e !important;
+    color: #e6eef8 !important;
+}
+
+:root[data-theme="dark"] .calendar-day.positive .calendar-day-number,
+:root[data-theme="dark"] .calendar-day.positive .calendar-day-profit {
+    color: #e6eef8 !important;
+}
+
+:root[data-theme="dark"] .search-card,
+:root[data-theme="dark"] .search-card-title,
+:root[data-theme="dark"] .search-section,
+:root[data-theme="dark"] .search-section input,
+:root[data-theme="dark"] .search-section button,
+:root[data-theme="dark"] .sidebar,
+:root[data-theme="dark"] .favorites-list,
+:root[data-theme="dark"] .favorite-item,
+:root[data-theme="dark"] .favorite-edit-btn,
+:root[data-theme="dark"] .favorite-name,
+:root[data-theme="dark"] .favorite-address,
+:root[data-theme="dark"] .favorite-empty,
+:root[data-theme="dark"] .tabs,
+:root[data-theme="dark"] .calendar-header-row,
+:root[data-theme="dark"] .calendar-title,
+:root[data-theme="dark"] .calendar-nav-btn,
+:root[data-theme="dark"] .calendar-table-wrapper,
+:root[data-theme="dark"] .calendar-week-summary,
+:root[data-theme="dark"] .chart-wrapper {
+    background: #0f172a !important;
+    border-color: #122136 !important;
+    color: #e6eef8 !important;
+}
+
+:root[data-theme="dark"] .favorite-item:hover {
+    background: #121a2c !important;
+}
+
+:root[data-theme="dark"] .favorite-item .favorite-name,
+:root[data-theme="dark"] .favorite-item .favorite-address {
+    color: #e6eef8 !important;
+}
+
+:root[data-theme="dark"] .favorites-list {
+    background: #0b1220 !important;
+}
+
+:root[data-theme="dark"] .search-card {
+    box-shadow: 0 12px 28px rgba(0, 0, 0, 0.28) !important;
+}
+
+:root[data-theme="dark"] .search-section input,
+:root[data-theme="dark"] .search-section button,
+:root[data-theme="dark"] .favorite-name-input,
+:root[data-theme="dark"] .favorite-toggle-btn {
+    background: #0b1220 !important;
+    color: #e6eef8 !important;
+}
+
+:root[data-theme="dark"] .search-section button,
+:root[data-theme="dark"] .calendar-nav-btn,
+:root[data-theme="dark"] .favorite-edit-btn,
+:root[data-theme="dark"] .favorite-toggle-btn,
+:root[data-theme="dark"] .favorite-name-input,
+:root[data-theme="dark"] .favorite-item,
+:root[data-theme="dark"] .favorites-list {
+    border-bottom: 1px solid #122136 !important;
+}
+
+:root[data-theme="dark"] .tab-button {
+    color: #cbd5e1 !important;
+}
+
+:root[data-theme="dark"] .tab-button.active {
+    color: #ffffff !important;
+    border-bottom-color: #2563eb !important;
+}
+
+:root[data-theme="dark"] .tab-button:hover {
+    color: #ffffff !important;
+}
+
+:root[data-theme="dark"] .calendar-table th,
+:root[data-theme="dark"] .calendar-table td {
+    background: #0b1220 !important;
+    color: #e6eef8 !important;
+}
+
+:root[data-theme="dark"] .calendar-week-summary {
+    background: #0b1220 !important;
+    border-color: #122136 !important;
+}
+
+:root[data-theme="dark"] .week-summary-row.month-total {
+    background: #121c2f !important;
+    border-color: #122136 !important;
+}
+
+:root[data-theme="dark"] #debugPanel > div {
+    background: #08111f !important;
+    border-color: #122136 !important;
+    color: #e6eef8 !important;
+}
+
+:root[data-theme="dark"] #debugPanel > div strong {
+    color: #e6eef8 !important;
+}
+
+:root[data-theme="dark"] #debugPanel > div pre {
+    color: #e6eef8 !important;
+    background: transparent !important;
+}
+
+:root[data-theme="dark"] .calendar-day.positive {
+    background: rgba(34, 197, 94, 0.16) !important;
+    border-color: #22c55e !important;
+    color: #e6eef8 !important;
+}
+
+:root[data-theme="dark"] .calendar-day.positive .calendar-day-number,
+:root[data-theme="dark"] .calendar-day.positive .calendar-day-profit {
+    color: #e6eef8 !important;
 }
 
 /* Ensure badges and pnl colors remain visible */
@@ -1259,6 +1940,7 @@ body.dark .raw-container {
 html[data-theme="dark"] table, html[data-theme="dark"] th, html[data-theme="dark"] td,
 body.dark table, body.dark th, body.dark td {
     color: #e6eef8 !important;
+    background: #0b1220 !important;
 }
 html[data-theme="dark"] input, html[data-theme="dark"] button, body.dark input, body.dark button {
     background: #071226 !important;
