@@ -9,38 +9,40 @@
 </head>
 <body>
     <div class="container">
-        <header>
-            <h1>Polymarket Wallet Viewer</h1>
-            <p class="subtitle">Datos reales de la API: activity, closed-positions, positions, value</p>
-        </header>
-        <!-- Theme toggle (fixed top-right) -->
         <button id="themeToggle" class="theme-toggle" title="Toggle dark/light">🌙</button>
 
-        <div class="wallets-preset">
-            <div class="preset-buttons">
-                <button class="preset-btn" data-wallet="0x43ffbff51e4a96da689b51742e436b977c3ff0e0">
-                    Wallet #1
-                    <span class="wallet-address">0x43ff...f0e0</span>
-                </button>
-                <button class="preset-btn" data-wallet="0x7e0e8bd852cab23f2d5baf332d4e72e9e203bb64">
-                    Wallet #2
-                    <span class="wallet-address">0x7e0e...bb64</span>
-                </button>
-            </div>
-            
-            <div class="search-divider">
-                <span>o ingresa una dirección personalizada</span>
-            </div>
+        <div class="app-shell">
+            <aside class="sidebar">
+                <div class="sidebar-header">
+                    <div class="sidebar-title-row">
+                        <h2>Favoritos</h2>
+                        <button id="favoriteEditBtn" class="favorite-edit-btn" title="Editar favoritos">Editar</button>
+                    </div>
+                </div>
+                <div id="favoritesList" class="favorites-list">
+                    <div class="favorite-empty">Guarda tu primera wallet usando la estrella al cargarla.</div>
+                </div>
+            </aside>
 
-            <div class="search-section">
-                <input type="text" id="walletInput" placeholder="0x..." value="0x...">
-                <button id="searchBtn">Buscar Wallet</button>
-            </div>
-        </div>
+            <main class="main-content">
+                <header class="page-header">
+                    <div>
+                        <h1>Polymarket Wallet Viewer</h1>
+                        <p class="subtitle">Datos reales de la API: activity, closed-positions, positions y valor</p>
+                    </div>
+                </header>
 
-        <div class="error-message" id="errorMessage"></div>
+                <div class="search-card">
+                    <div class="search-card-title">Buscar Wallet</div>
+                    <div class="search-section">
+                        <input type="text" id="walletInput" placeholder="Ej. 0x...">
+                        <button id="searchBtn">Buscar Wallet</button>
+                    </div>
+                </div>
 
-        <div class="dashboard">
+                <div class="error-message" id="errorMessage"></div>
+
+                <div class="dashboard">
             <div class="cards-container">
                 <div class="profile-card">
                     <!-- Columna Izquierda: Imagen, Nombre, Trades -->
@@ -81,15 +83,24 @@
 
                     <!-- Fila de Wallet: Ocupa todo el ancho -->
                     <div class="profile-wallet-row">
-                        <span class="wallet-label">wallet</span>
-                        <span class="wallet-value" id="profileWallet">—</span>
+                        <div>
+                            <span class="wallet-label">Wallet</span>
+                            <div class="wallet-copy-container">
+                                <span class="wallet-value" id="profileWallet">—</span>
+                                <button id="copyWalletBtn" class="copy-wallet-btn" title="Copiar wallet" style="display: none;">📋</button>
+                            </div>
+                        </div>
+                        <button id="favoriteCurrentBtn" class="favorite-toggle-btn" title="Agregar wallet a favoritos">☆</button>
                     </div>
                 </div>
 
                 <div class="analysis-card">
                     <div class="analysis-header">
                         <h3>📈 Operaciones cerradas</h3>
-                        <div class="analysis-total" id="analysisTotalValue">—</div>
+                        <div class="analysis-controls">
+                            <button id="toggleChartMode" class="chart-mode-btn" title="Cambiar vista de gráfico">Vista línea</button>
+                            <div class="analysis-total" id="analysisTotalValue">—</div>
+                        </div>
                     </div>
                     <div class="analysis-content">
                         <div class="chart-wrapper">
@@ -103,12 +114,7 @@
                 <button class="tab-button active" data-tab="positions">📊 Posiciones</button>
                 <button class="tab-button" data-tab="activity">🔄 Actividad</button>
                 <button class="tab-button" data-tab="closed">📉 Cerradas</button>
-            </div>
-            
-            <div class="tabs raw-tabs">
-                <button class="tab-button" data-tab="raw-positions">📦 RAW Posiciones</button>
-                <button class="tab-button" data-tab="raw-activity">📦 RAW Actividad</button>
-                <button class="tab-button" data-tab="raw-closed">📦 RAW Cerradas</button>
+                <button class="tab-button" data-tab="calendar">📅 Calendario</button>
             </div>
 
 			<!-- POSICIONES - Con el orden exacto que pediste -->
@@ -187,6 +193,42 @@
 			</div>
 		</div>
 
+            <div id="calendar" class="tab-content">
+                <div class="calendar-header-row">
+                    <div class="calendar-header-title">
+                        <h3>Calendario</h3>
+                        <p class="raw-subtitle">Ganancias por día según operaciones cerradas. Fees sin descontar, horario americano.</p>
+                    </div>
+                    <div class="calendar-controls">
+                        <button id="calendarPrevBtn" class="calendar-nav-btn" title="Mes anterior">←</button>
+                        <span id="calendarTitle" class="calendar-title">Mes</span>
+                        <button id="calendarNextBtn" class="calendar-nav-btn" title="Mes siguiente">→</button>
+                    </div>
+                </div>
+                <div class="calendar-panel">
+                    <div class="calendar-table-wrapper">
+                        <table class="calendar-table">
+                            <thead>
+                                <tr>
+                                    <th>Lun</th>
+                                    <th>Mar</th>
+                                    <th>Mier</th>
+                                    <th>Jue</th>
+                                    <th>Vier</th>
+                                    <th>Sab</th>
+                                    <th>Dom</th>
+                                </tr>
+                            </thead>
+                            <tbody id="calendarBody"></tbody>
+                        </table>
+                    </div>
+                    <div class="calendar-week-summary">
+                        <h4>Profit semanal</h4>
+                        <div id="calendarWeekSummary"></div>
+                    </div>
+                </div>
+            </div>
+
             <div id="raw-positions" class="tab-content">
                 <div class="raw-header">
                     <h3>📦 /positions - RAW JSON</h3>
@@ -216,6 +258,8 @@
                     <pre class="raw-empty">Busca una wallet para ver los datos RAW</pre>
                 </div>
             </div>
+        </div>
+        </main>
         </div>
 
         <div class="loading" id="loading">
@@ -258,18 +302,6 @@
     <script src="main.js"></script>
     
     <script>
-        // Auto-load first wallet on page load for testing
-        window.addEventListener('load', () => {
-            setTimeout(() => {
-                if (window.app) {
-                    console.log('App ready, loading test wallet...');
-                    window.app.loadWalletData('0x43ffbff51e4a96da689b51742e436b977c3ff0e0');
-                } else {
-                    console.error('App not initialized');
-                }
-            }, 500);
-        });
-
         // Theme toggle: persist in localStorage and apply 'dark' class on body and html
         (function() {
             const btn = document.getElementById('themeToggle');
