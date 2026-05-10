@@ -6,6 +6,7 @@ class App {
         this.currentWallet = null;
         this.currentLbPeriod = 'ALL';  // ALL por defecto
         this.chartMode = 'points';
+        this.modalChartMode = 'line';
         this.leaderboardData = {}; // { DAY, WEEK, MONTH, ALL }
         this.tradedCount = null;
         this.favorites = [];
@@ -61,6 +62,7 @@ class App {
         this.analysisTotalValue = document.getElementById('analysisTotalValue');
         this.toggleChartModeBtn = document.getElementById('toggleChartMode');
         this.closedChart = null;
+        this.modalDayChart = null;
         this.closedChartCtx = null;
         this.closedPositionsData = null;
         this.calendarDate = new Date();
@@ -78,6 +80,14 @@ class App {
         this.calendarNextBtn = document.getElementById('calendarNextBtn');
         this.calendarBody = document.getElementById('calendarBody');
         this.calendarWeekSummary = document.getElementById('calendarWeekSummary');
+        
+        // Modal elements
+        this.calendarDayModal = document.getElementById('calendarDayModal');
+        this.closeModalBtn = document.getElementById('closeModalBtn');
+        this.modalDayTitle = document.getElementById('modalDayTitle');
+        this.modalDayPnl = document.getElementById('modalDayPnl');
+        this.modalChartModeBtn = document.getElementById('modalChartModeBtn');
+        this.modalTradesBody = document.getElementById('modalTradesBody');
     }
 
     initEventListeners() {
@@ -239,6 +249,28 @@ class App {
             this.toggleChartModeBtn.addEventListener('click', (e) => {
                 e.preventDefault();
                 this.toggleChartMode();
+            });
+        }
+
+        if (this.modalChartModeBtn) {
+            this.modalChartModeBtn.addEventListener('click', (e) => {
+                e.preventDefault();
+                this.toggleModalChartMode();
+            });
+        }
+
+        if (this.closeModalBtn) {
+            this.closeModalBtn.addEventListener('click', (e) => {
+                this.closeCalendarDayModal();
+            });
+        }
+
+        // Close modal when clicking outside
+        if (this.calendarDayModal) {
+            this.calendarDayModal.addEventListener('click', (e) => {
+                if (e.target === this.calendarDayModal) {
+                    this.closeCalendarDayModal();
+                }
             });
         }
     }
@@ -514,6 +546,25 @@ class App {
         } else {
             this.toggleChartModeBtn.textContent = 'Vista puntos';
             this.toggleChartModeBtn.title = 'Cambiar a gráfico de línea limpia';
+        }
+    }
+
+    toggleModalChartMode() {
+        this.modalChartMode = this.modalChartMode === 'line' ? 'points' : 'line';
+        this.updateModalChartModeButton();
+        if (this.modalDayChart) {
+            this.renderModalDayChart(this.lastModalTrades || []);
+        }
+    }
+
+    updateModalChartModeButton() {
+        if (!this.modalChartModeBtn) return;
+        if (this.modalChartMode === 'line') {
+            this.modalChartModeBtn.textContent = 'Vista puntos';
+            this.modalChartModeBtn.title = 'Cambiar a gráfico de puntos';
+        } else {
+            this.modalChartModeBtn.textContent = 'Vista línea';
+            this.modalChartModeBtn.title = 'Cambiar a gráfico de línea';
         }
     }
 
@@ -959,12 +1010,18 @@ class App {
         };
 
         const profitByDay = new Map();
+        const tradesByDay = new Map();
         this.closedPositionsData.forEach(pos => {
             const date = getCalendarDate(pos);
             if (isNaN(date.getTime()) || date.getFullYear() !== year || date.getMonth() !== month) return;
             const key = `${date.getFullYear()}-${date.getMonth()}-${date.getDate()}`;
             const current = profitByDay.get(key) || 0;
             profitByDay.set(key, current + (pos.realizedPnl || 0));
+            
+            if (!tradesByDay.has(key)) {
+                tradesByDay.set(key, []);
+            }
+            tradesByDay.get(key).push(pos);
         });
 
         const firstDayOfMonth = new Date(year, month, 1);
@@ -1000,6 +1057,21 @@ class App {
         }
 
         this.calendarBody.innerHTML = html;
+
+        // Add click listeners to calendar days
+        const calendarDays = this.calendarBody.querySelectorAll('.calendar-day');
+        calendarDays.forEach((cell, index) => {
+            const dayNumber = parseInt(cell.querySelector('.calendar-day-number').textContent);
+            const key = `${year}-${month}-${dayNumber}`;
+            const trades = tradesByDay.get(key) || [];
+            
+            if (trades.length > 0) {
+                cell.style.cursor = 'pointer';
+                cell.addEventListener('click', () => {
+                    this.showCalendarDayModal(dayNumber, month, year, trades);
+                });
+            }
+        });
 
         const monthTotal = weekSums.reduce((sum, profit) => sum + (profit || 0), 0);
         const monthTotalClass = monthTotal > 0 ? 'pnl-positive' : monthTotal < 0 ? 'pnl-negative' : 'neutral';
@@ -1188,6 +1260,290 @@ class App {
                 }
             }
         });
+    }
+
+    // Modal functions for calendar day details
+    showCalendarDayModal(day, month, year, trades) {
+        if (!trades || trades.length === 0) return;
+
+        const dateStr = new Date(year, month, day).toLocaleDateString('es-ES', {
+            weekday: 'long',
+            year: 'numeric',
+            month: 'long',
+            day: 'numeric'
+        });
+
+        this.modalDayTitle.textContent = `Trades del ${dateStr}`;
+        this.updateModalChartModeButton();
+
+        // Función para parsear fecha del título (extraer timestamp real)
+        const parseTitleDateTime = (title) => {
+            const dateTimeMatch = title.match(/([A-Za-z]+)\s+(\d+),\s*(\d+):(\d+)(AM|PM)/);
+            if (!dateTimeMatch) return new Date(0);
+
+            const monthStr = dateTimeMatch[1];
+            const dayStr = dateTimeMatch[2];
+            const hourStr = dateTimeMatch[3];
+            const minuteStr = dateTimeMatch[4];
+            const ampm = dateTimeMatch[5];
+
+            const months = { january: 0, february: 1, march: 2, april: 3, may: 4, june: 5, july: 6, august: 7, september: 8, october: 9, november: 10, december: 11 };
+            const parsedMonth = months[monthStr.toLowerCase()];
+            if (parsedMonth === undefined) return new Date(0);
+
+            const day = parseInt(dayStr, 10);
+            const hour = parseInt(hourStr, 10);
+            const minute = parseInt(minuteStr, 10);
+            let hour24 = hour;
+            if (ampm === 'AM') {
+                if (hour === 12) hour24 = 0;
+            } else if (hour !== 12) {
+                hour24 = hour + 12;
+            }
+
+            const yearFromTitle = new Date().getFullYear();
+            return new Date(yearFromTitle, parsedMonth, day, hour24, minute);
+        };
+
+        const getCalendarDate = (pos) => {
+            const titleDate = parseTitleDateTime(pos.title || '');
+            if (!isNaN(titleDate.getTime())) {
+                return titleDate;
+            }
+            const ts = Number(pos.closeTimestamp ?? pos.timestamp ?? 0) * 1000;
+            const date = new Date(ts);
+            return isNaN(date.getTime()) ? new Date(0) : date;
+        };
+
+        // Ordenar trades por fecha descendente (más reciente primero)
+        const sortedTrades = trades.slice().sort((a, b) => {
+            const dateA = getCalendarDate(a);
+            const dateB = getCalendarDate(b);
+            return dateB - dateA; // Descendente
+        });
+
+        if (this.modalDayPnl) {
+            const totalDayPnl = sortedTrades.reduce((sum, pos) => sum + (pos.realizedPnl || 0), 0);
+            this.modalDayPnl.innerHTML = `PNL del día: ${this.closedTab.formatPNL(totalDayPnl)}`;
+        }
+
+        let html = '';
+        sortedTrades.forEach(pos => {
+            const timestamp = pos.closeTimestamp || pos.timestamp;
+            const totalBought = pos.totalBought || pos.size || 0;
+            const avgPrice = pos.avgPrice || 0;
+            const investment = totalBought * avgPrice;
+            const realizedPnl = pos.realizedPnl || 0;
+            const outcomeText = pos.outcome || '—';
+            const slug = pos.slug || '—';
+            const title = pos.title || '—';
+
+            // Determinar color del outcome
+            const outcomeLower = outcomeText.toString().toLowerCase();
+            let dotClass = 'positive';
+            if (outcomeLower.includes('up')) dotClass = 'positive';
+            else if (outcomeLower.includes('down')) dotClass = 'negative';
+            else dotClass = realizedPnl >= 0 ? 'positive' : 'negative';
+
+            html += `
+                <tr>
+                    <td><div class="trade-title">${title}</div><div class="trade-slug"><a href="https://polymarket.com/event/${slug}" target="_blank" rel="noopener noreferrer">${slug}</a></div></td>
+                    <td><span class="side-badge ${dotClass}">${outcomeText}</span></td>
+                    <td class="text-right"><strong>$${this.closedTab.formatNumber(investment)}</strong></td>
+                    <td class="text-right">${this.closedTab.formatPriceInCents(avgPrice)}</td>
+                    <td class="text-right">${this.closedTab.formatNumber(totalBought)}</td>
+                    <td class="text-right">${this.closedTab.formatPNL(realizedPnl)}</td>
+                </tr>`;
+        });
+
+        this.modalTradesBody.innerHTML = html;
+
+        // Render chart for this day's trades
+        this.renderModalDayChart(sortedTrades);
+
+        this.calendarDayModal.style.display = 'block';
+        document.body.style.overflow = 'hidden'; // Prevent background scrolling
+    }
+
+    renderModalDayChart(trades) {
+        const canvasElement = document.getElementById('modalDayChart');
+        if (!canvasElement) return;
+
+        // Destroy existing chart if any
+        if (this.modalDayChart) {
+            this.modalDayChart.destroy();
+            this.modalDayChart = null;
+        }
+
+        if (!trades || trades.length === 0) return;
+
+        const ctx = canvasElement.getContext('2d');
+
+        // Función para parsear fecha del título
+        const parseTitleDateTime = (title) => {
+            const dateTimeMatch = title.match(/([A-Za-z]+)\s+(\d+),\s*(\d+):(\d+)(AM|PM)/);
+            if (!dateTimeMatch) return new Date(0);
+
+            const monthStr = dateTimeMatch[1];
+            const dayStr = dateTimeMatch[2];
+            const hourStr = dateTimeMatch[3];
+            const minuteStr = dateTimeMatch[4];
+            const ampm = dateTimeMatch[5];
+
+            const months = { january: 0, february: 1, march: 2, april: 3, may: 4, june: 5, july: 6, august: 7, september: 8, october: 9, november: 10, december: 11 };
+            const parsedMonth = months[monthStr.toLowerCase()];
+            if (parsedMonth === undefined) return new Date(0);
+
+            const day = parseInt(dayStr, 10);
+            const hour = parseInt(hourStr, 10);
+            const minute = parseInt(minuteStr, 10);
+            let hour24 = hour;
+            if (ampm === 'AM') {
+                if (hour === 12) hour24 = 0;
+            } else if (hour !== 12) {
+                hour24 = hour + 12;
+            }
+
+            const yearFromTitle = new Date().getFullYear();
+            return new Date(yearFromTitle, parsedMonth, day, hour24, minute);
+        };
+
+        const getTimestamp = pos => {
+            const titleDate = parseTitleDateTime(pos.title || '');
+            if (!isNaN(titleDate.getTime())) {
+                return titleDate.getTime();
+            }
+            return Number(pos.closeTimestamp ?? pos.timestamp ?? 0) * 1000;
+        };
+
+        // Ordenar los trades de más antiguo a más reciente para que el más actual quede a la derecha
+        const sortedForChart = trades.slice().sort((a, b) => getTimestamp(a) - getTimestamp(b));
+
+        const timelineData = [];
+        const labels = [];
+        let accumulatedPnl = 0;
+
+        sortedForChart.forEach((pos, index) => {
+            const realizedPnl = pos.realizedPnl || 0;
+            accumulatedPnl += realizedPnl;
+
+            const titleDate = parseTitleDateTime(pos.title || '');
+            const dateStr = !isNaN(titleDate.getTime()) 
+                ? titleDate.toLocaleDateString('es-ES', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })
+                : this.closedTab.formatDate(pos.closeTimestamp || pos.timestamp);
+
+            const totalBought = pos.totalBought || pos.size || 0;
+            const avgPrice = pos.avgPrice || 0;
+            const investment = totalBought * avgPrice;
+            const outcomeText = pos.outcome || '—';
+            const title = pos.title || '—';
+
+            labels.push(`Trade ${index + 1}`);
+            timelineData.push({
+                y: accumulatedPnl,
+                date: dateStr,
+                slug: pos.slug || '—',
+                pnl: realizedPnl,
+                title: title,
+                outcome: outcomeText,
+                investment: investment,
+                avgPrice: avgPrice,
+                shares: totalBought
+            });
+        });
+
+        this.lastModalTrades = trades.slice();
+        this.modalDayChart = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels,
+                datasets: [{
+                    label: 'PNL Acumulado',
+                    data: timelineData.map(point => point.y),
+                    borderColor: '#3b82f6',
+                    backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                    fill: false,
+                    tension: 0.4,
+                    showLine: true,
+                    pointRadius: this.modalChartMode === 'points' ? 6 : 0,
+                    pointHoverRadius: 8,
+                    pointBackgroundColor: timelineData.map(point => point.pnl >= 0 ? '#10b981' : '#ef4444'),
+                    pointBorderColor: timelineData.map(point => point.pnl >= 0 ? '#059669' : '#dc2626'),
+                    pointBorderWidth: 2
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                interaction: {
+                    intersect: false,
+                    mode: 'index'
+                },
+                plugins: {
+                    legend: {
+                        display: false
+                    },
+                    tooltip: {
+                        callbacks: {
+                            title: function(context) {
+                                const dataPoint = timelineData[context[0].dataIndex];
+                                return dataPoint.title;
+                            },
+                            label: function(context) {
+                                const dataPoint = timelineData[context[0].dataIndex];
+                                const accumulatedSign = context.parsed.y >= 0 ? '+' : '';
+                                const tradeSign = dataPoint.pnl >= 0 ? '+' : '';
+                                return [
+                                    `Outcome: ${dataPoint.outcome}`,
+                                    `Inversión: $${dataPoint.investment.toFixed(2)}`,
+                                    `Avg Price: ${(dataPoint.avgPrice * 100).toFixed(1)}¢`,
+                                    `Shares: ${dataPoint.shares.toFixed(2)}`,
+                                    `PNL Trade: ${tradeSign}$${dataPoint.pnl.toFixed(2)}`,
+                                    `PNL Acumulado: ${accumulatedSign}$${context.parsed.y.toFixed(2)}`
+                                ];
+                            }
+                        },
+                        displayColors: false,
+                        backgroundColor: '#1e293b',
+                        titleColor: '#f1f5f9',
+                        bodyColor: '#e2e8f0',
+                        borderColor: '#3b82f6',
+                        borderWidth: 1,
+                        padding: 12,
+                        titleFont: { weight: 'bold' }
+                    }
+                },
+                scales: {
+                    x: {
+                        display: false,
+                        type: 'category',
+                        ticks: { display: false },
+                        grid: { display: false }
+                    },
+                    y: {
+                        beginAtZero: true,
+                        grid: { color: 'rgba(226, 232, 240, 0.5)' },
+                        ticks: {
+                            callback: function(value) {
+                                const sign = value >= 0 ? '+' : '-';
+                                return sign + '$' + Math.abs(value).toFixed(0);
+                            }
+                        }
+                    }
+                }
+            }
+        });
+    }
+
+    closeCalendarDayModal() {
+        this.calendarDayModal.style.display = 'none';
+        document.body.style.overflow = ''; // Restore scrolling
+        
+        // Destroy chart when closing modal
+        if (this.modalDayChart) {
+            this.modalDayChart.destroy();
+            this.modalDayChart = null;
+        }
     }
 }
 
