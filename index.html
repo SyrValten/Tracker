@@ -142,57 +142,61 @@
 					</table>
 				</div>
 			</div>
-			<!-- ACTIVIDAD - Con Price movido entre Outcome y Shares -->
-			<div id="activity" class="tab-content">
-				<div class="table-container">
-					<table>
-						<thead>
-							<tr>
-								<th>Fecha</th>
-								<th>Title</th>
-								<th>Side</th>
-								<th>Outcome</th>
-								<th class="text-right">Price</th>
-								<th class="text-right">Shares</th>
-								<th class="text-right">USDC</th>
-							</tr>
-						</thead>
-						<tbody id="activityBody">
-							<tr>
-								<td colspan="7" class="empty-state">
-									Ingresa una wallet para ver su actividad
-								</td>
-							</tr>
-						</tbody>
-					</table>
-				</div>
-			</div>
-
+			            <!-- ACTIVIDAD - Con Price movido entre Outcome y Shares -->
+            <div id="activity" class="tab-content">
+                <div class="table-container">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Fecha</th>
+                                <th>Title</th>
+                                <th>Side</th>
+                                <th>Outcome</th>
+                                <th class="text-right">Price</th>
+                                <th class="text-right">Shares</th>
+                                <th class="text-right">USDC</th>
+                            </tr>
+                        </thead>
+                        <tbody id="activityBody">
+                            <tr>
+                                <td colspan="7" class="empty-state">
+                                    Ingresa una wallet para ver su actividad
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+                <div class="load-more-container">
+                    <button id="loadMoreActivityBtn" class="load-more-btn" style="display: none;">Cargar más actividad</button>
+                </div>
+            </div>
             <div id="closed" class="tab-content">
-			<div class="table-container">
-				<table>
-					<thead>
-						<tr>
-							<th>Fecha cierre</th>
-							<th>Slug</th>
-							<th>Outcome</th>
-							<th class="text-right">Inv. ($)</th>
-							<th class="text-right">Avg Price</th>
-							<th class="text-right">Shares</th>
-							<th class="text-right">Realized PNL</th>
-						</tr>
-					</thead>
-					<tbody id="closedBody">
-						<tr>
-							<td colspan="7" class="empty-state">
-								Ingresa una wallet para ver sus posiciones cerradas
-							</td>
-						</tr>
-					</tbody>
-				</table>
-			</div>
-		</div>
-
+                <div class="table-container">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Fecha cierre</th>
+                                <th>Slug</th>
+                                <th>Outcome</th>
+                                <th class="text-right">Inv. ($)</th>
+                                <th class="text-right">Avg Price</th>
+                                <th class="text-right">Shares</th>
+                                <th class="text-right">Realized PNL</th>
+                            </tr>
+                        </thead>
+                        <tbody id="closedBody">
+                            <tr>
+                                <td colspan="7" class="empty-state">
+                                    Ingresa una wallet para ver sus posiciones cerradas
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+                <div class="load-more-container">
+                    <button id="loadMoreClosedBtn" class="load-more-btn" style="display: none;">Cargar más posiciones cerradas</button>
+                </div>
+            </div>
             <div id="calendar" class="tab-content">
                 <div class="calendar-header-row">
                     <div class="calendar-header-title">
@@ -228,8 +232,7 @@
                     </div>
                 </div>
             </div>
-
-            <div id="raw-positions" class="tab-content">
+<div id="raw-positions" class="tab-content">
                 <div class="raw-header">
                     <h3>📦 /positions - RAW JSON</h3>
                     <p class="raw-subtitle">Respuesta exacta del endpoint de posiciones abiertas</p>

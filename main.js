@@ -14,11 +14,6 @@ class App {
         this.favoritesEditMode = false;
         this.dragStartWallet = null;
         this.dragOverWallet = null;
-        this.activityData = null;
-        this.closedPositionsData = null;
-        
-        this.activityTab = null;
-        this.closedTab = null;
         
         try {
             this.activityTab = new ActivityTab(this);
@@ -221,10 +216,10 @@ class App {
         });
 
         this.tabButtons.forEach(button => {
-            button.addEventListener('click', async (e) => {
+            button.addEventListener('click', (e) => {
                 e.preventDefault();
                 const tabId = button.dataset.tab;
-                await this.switchTab(tabId);
+                this.switchTab(tabId);
             });
         });
 
@@ -598,7 +593,7 @@ class App {
         });
     }
 
-    async switchTab(tabId) {
+    switchTab(tabId) {
         this.tabButtons.forEach(btn => btn.classList.remove('active'));
         const activeTab = document.querySelector(`.tab-button[data-tab="${tabId}"]`);
         if (activeTab) activeTab.classList.add('active');
@@ -609,23 +604,11 @@ class App {
         
         this.activeTabId = tabId;
 
-        if (!this.currentWallet) return;
-
-        if (tabId === 'calendar') {
-            await this.loadClosedPositionsData();
-            this.renderCalendarTab();
-        } else if (tabId === 'closed') {
-            await this.loadClosedPositionsData();
-        } else if (tabId === 'activity') {
-            await this.loadActivityData();
-        } else if (tabId === 'raw-activity') {
-            await this.loadActivityData();
-            this.activityTab?.renderRaw();
-        } else if (tabId === 'raw-closed') {
-            await this.loadClosedPositionsData();
-            this.closedTab?.renderRaw();
-        } else if (tabId === 'raw-positions') {
-            this.renderRawPositions();
+        if (this.currentWallet) {
+            if (tabId === 'calendar') this.renderCalendarTab();
+            else if (tabId === 'raw-activity') this.activityTab.renderRaw();
+            else if (tabId === 'raw-closed') this.closedTab.renderRaw();
+            else if (tabId === 'raw-positions') this.renderRawPositions();
         }
     }
 
@@ -682,11 +665,11 @@ class App {
         try {
             this.currentWallet = wallet;
             this.updateUrl(wallet);
-            this.closedPositionsData = null;
-            this.activityData = null;
             
-            const [positions, lbDay, lbWeek, lbMonth, lbAll, traded] = await Promise.allSettled([
+            const [positions, closedPositions, activity, lbDay, lbWeek, lbMonth, lbAll, traded] = await Promise.allSettled([
                 this.api.getPositions(wallet),
+                this.api.getClosedPositions(wallet),
+                this.api.getActivity(wallet),
                 this.api.getLeaderboard(wallet, 'DAY'),
                 this.api.getLeaderboard(wallet, 'WEEK'),
                 this.api.getLeaderboard(wallet, 'MONTH'),
@@ -702,14 +685,27 @@ class App {
                 this.renderPositions([]);
             }
 
-            this.renderAnalysis([]);
-
-            if (this.activeTabId === 'closed' || this.activeTabId === 'raw-closed' || this.activeTabId === 'calendar') {
-                await this.loadClosedPositionsData();
+            if (closedPositions.status === 'fulfilled' && Array.isArray(closedPositions.value)) {
+                this.closedPositionsData = closedPositions.value;
+                this.closedTab.setRawData(closedPositions.value);
+                this.closedTab.render(closedPositions.value);
+                this.renderAnalysis(closedPositions.value);
+                if (this.activeTabId === 'calendar') {
+                    this.renderCalendarTab();
+                }
+            } else {
+                this.closedPositionsData = null;
+                this.closedTab.setRawData(null);
+                this.closedTab.render([]);
+                this.renderAnalysis([]);
             }
 
-            if (this.activeTabId === 'activity' || this.activeTabId === 'raw-activity') {
-                await this.loadActivityData();
+            if (activity.status === 'fulfilled' && Array.isArray(activity.value)) {
+                this.activityTab.setRawData(activity.value);
+                this.activityTab.render(activity.value);
+            } else {
+                this.activityTab.setRawData(null);
+                this.activityTab.render([]);
             }
 
             // Procesar datos del leaderboard para cada período
@@ -733,65 +729,6 @@ class App {
         }
     }
 
-    async loadClosedPositionsData(forceReload = false) {
-        if (!this.currentWallet) return;
-        if (!forceReload && Array.isArray(this.closedPositionsData)) return;
-        if (!this.closedTab) return;
-
-        try {
-            const closedPositions = await this.api.getClosedPositions(this.currentWallet, 50, 0);
-            if (Array.isArray(closedPositions)) {
-                this.closedPositionsData = closedPositions;
-                this.closedTab.setRawData(closedPositions);
-                this.renderAnalysis(closedPositions);
-                if (this.activeTabId === 'closed') this.closedTab.render(closedPositions);
-                if (this.activeTabId === 'raw-closed') this.closedTab.renderRaw();
-                if (this.activeTabId === 'calendar') this.renderCalendarTab();
-            } else {
-                this.closedPositionsData = [];
-                this.closedTab.setRawData(null);
-                this.renderAnalysis([]);
-                if (this.activeTabId === 'closed') this.closedTab.render([]);
-                if (this.activeTabId === 'raw-closed') this.closedTab.renderRaw();
-                if (this.activeTabId === 'calendar') this.renderCalendarTab();
-            }
-        } catch (error) {
-            console.error('Error loading closed positions:', error);
-            this.closedPositionsData = [];
-            this.closedTab.setRawData(null);
-            this.renderAnalysis([]);
-            if (this.activeTabId === 'closed') this.closedTab.render([]);
-            if (this.activeTabId === 'raw-closed') this.closedTab.renderRaw();
-            if (this.activeTabId === 'calendar') this.renderCalendarTab();
-        }
-    }
-
-    async loadActivityData(forceReload = false) {
-        if (!this.currentWallet) return;
-        if (!forceReload && Array.isArray(this.activityData)) return;
-        if (!this.activityTab) return;
-
-        try {
-            const activity = await this.api.getActivity(this.currentWallet, 50, 0);
-            if (Array.isArray(activity)) {
-                this.activityData = activity;
-                this.activityTab.setRawData(activity);
-                if (this.activeTabId === 'activity') this.activityTab.render(activity);
-                if (this.activeTabId === 'raw-activity') this.activityTab.renderRaw();
-            } else {
-                this.activityData = [];
-                this.activityTab.setRawData(null);
-                if (this.activeTabId === 'activity') this.activityTab.render([]);
-                if (this.activeTabId === 'raw-activity') this.activityTab.renderRaw();
-            }
-        } catch (error) {
-            console.error('Error loading activity data:', error);
-            this.activityData = [];
-            this.activityTab.setRawData(null);
-            if (this.activeTabId === 'activity') this.activityTab.render([]);
-            if (this.activeTabId === 'raw-activity') this.activityTab.renderRaw();
-        }
-    }
 
     renderPositions(positions) {
         if (!positions || positions.length === 0) {

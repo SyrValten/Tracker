@@ -58,14 +58,8 @@ class PolymarketAPI {
         return results;
     }
 
-    async getClosedPositions(user, limit = 50, offset = 0) {
-        return this.fetchFromAPI('/closed-positions', {
-            user: user,
-            limit: limit,
-            offset: offset,
-            sortBy: 'TIMESTAMP',
-            sortDirection: 'DESC'
-        });
+    async getClosedPositions(user) {
+        return this.fetchAllClosedPositions(user, 50);
     }
 
     async fetchAllActivity(user, pageSize = 50) {
@@ -96,14 +90,8 @@ class PolymarketAPI {
         return results;
     }
 
-    async getActivity(user, limit = 50, offset = 0) {
-        return this.fetchFromAPI('/activity', {
-            user: user,
-            limit: limit,
-            offset: offset,
-            sortBy: 'TIMESTAMP',
-            sortDirection: 'DESC'
-        });
+    async getActivity(user) {
+        return this.fetchAllActivity(user, 50);
     }
 
     async getTotalValue(user) {
