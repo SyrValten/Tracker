@@ -25,9 +25,10 @@
             </aside>
 
             <main class="main-content">
+                
                 <header class="page-header">
                     <div>
-                        <h1>Polymarket Wallet Viewer v9.5</h1>
+                        <h1>Polymarket Wallet Viewer v9.7</h1>
                         <p class="subtitle">Datos reales de la API: activity, closed-positions, positions y valor</p>
                     </div>
                 </header>
@@ -43,307 +44,172 @@
                 <div class="error-message" id="errorMessage"></div>
 
                 <div class="dashboard">
-            <div class="cards-container">
-                <div class="profile-card">
-                    <!-- Columna Izquierda: Imagen, Nombre, Trades -->
-                    <div class="profile-left">
-                        <img id="profileImage" class="profile-avatar" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 120 120'%3E%3Crect fill='%233b82f6' width='120' height='120'/%3E%3Ctext x='50%25' y='50%25' text-anchor='middle' dy='.3em' fill='white' font-size='48' font-family='Arial'%3E%3F%3C/text%3E%3C/svg%3E" alt="Profile">
-                        <div class="profile-name" id="profileName">Nombre</div>
-                        <div class="stat-item">
-                            <div class="stat-label">Trades</div>
-                            <div class="stat-number" id="profileTrades">—</div>
-                        </div>
-                    </div>
+                    <div class="cards-container">
+                        <div class="profile-card">
+                            <div class="profile-left">
+                                <img id="profileImage" class="profile-avatar" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 120 120'%3E%3Crect fill='%233b82f6' width='120' height='120'/%3E%3Ctext x='50%25' y='50%25' text-anchor='middle' dy='.3em' fill='white' font-size='48' font-family='Arial'%3E%3F%3C/text%3E%3C/svg%3E" alt="Profile">
+                                <div class="profile-name" id="profileName">Nombre</div>
+                                <div class="stat-item">
+                                    <div class="stat-label">Trades</div>
+                                    <div class="stat-number" id="profileTrades">—</div>
+                                </div>
+                            </div>
 
-                    <!-- Columna Media: Rango, PNL, Volumen -->
-                    <div class="profile-middle">
-                        <div class="stat-item">
-                            <div class="stat-label">Rango</div>
-                            <div class="stat-number" id="profileRank">—</div>
-                        </div>
-                        <div class="stat-item">
-                            <div class="stat-label">PNL</div>
-                            <div class="stat-number" id="profilePnl">—</div>
-                        </div>
-                        <div class="stat-item">
-                            <div class="stat-label">Volumen</div>
-                            <div class="stat-number" id="profileVol">—</div>
-                        </div>
-                    </div>
+                            <div class="profile-middle">
+                                <div class="stat-item">
+                                    <div class="stat-label">Rango</div>
+                                    <div class="stat-number" id="profileRank">—</div>
+                                </div>
+                                <div class="stat-item">
+                                    <div class="stat-label">PNL</div>
+                                    <div class="stat-number" id="profilePnl">—</div>
+                                </div>
+                                <div class="stat-item">
+                                    <div class="stat-label">Volumen</div>
+                                    <div class="stat-number" id="profileVol">—</div>
+                                </div>
+                            </div>
 
-                    <!-- Columna Derecha: Tabs de Período -->
-                    <div class="profile-right">
-                        <div class="leaderboard-tabs">
-                            <button class="lb-tab-button" data-period="DAY">📅 Dia</button>
-                            <button class="lb-tab-button" data-period="WEEK">📆 Semana</button>
-                            <button class="lb-tab-button" data-period="MONTH">📋 Mes</button>
-                            <button class="lb-tab-button active" data-period="ALL">🏆 All</button>
-                        </div>
-                    </div>
+                            <div class="profile-right">
+                                <div class="leaderboard-tabs">
+                                    <button class="lb-tab-button" data-period="DAY">📅 Dia</button>
+                                    <button class="lb-tab-button" data-period="WEEK">📆 Semana</button>
+                                    <button class="lb-tab-button" data-period="MONTH">📋 Mes</button>
+                                    <button class="lb-tab-button active" data-period="ALL">🏆 All</button>
+                                </div>
+                            </div>
 
-                    <!-- Fila de Wallet: Ocupa todo el ancho -->
-                    <div class="profile-wallet-row">
-                        <div>
-                            <span class="wallet-label">Wallet</span>
-                            <div class="wallet-copy-container">
-                                <span class="wallet-value" id="profileWallet">—</span>
-                                <button id="copyWalletBtn" class="copy-wallet-btn" title="Copiar wallet" style="display: none;">📋</button>
+                            <div class="profile-wallet-row">
+                                <div>
+                                    <span class="wallet-label">Wallet</span>
+                                    <div class="wallet-copy-container">
+                                        <span class="wallet-value" id="profileWallet">—</span>
+                                        <button id="copyWalletBtn" class="copy-wallet-btn" title="Copiar wallet" style="display: none;">📋</button>
+                                    </div>
+                                </div>
+                                <button id="favoriteCurrentBtn" class="favorite-toggle-btn" title="Agregar wallet a favoritos">☆</button>
                             </div>
                         </div>
-                        <button id="favoriteCurrentBtn" class="favorite-toggle-btn" title="Agregar wallet a favoritos">☆</button>
-                    </div>
-                </div>
 
-                <div class="analysis-card">
-                    <div class="analysis-header">
-                        <h3>📈 Operaciones cerradas</h3>
-                        <div class="analysis-controls">
-                            <button id="toggleChartMode" class="chart-mode-btn" title="Cambiar vista de gráfico">Vista línea</button>
-                            <div class="analysis-total" id="analysisTotalValue">—</div>
+                        <div class="analysis-card">
+                            <div class="analysis-header">
+                                <h3 id="analysisTitle">📈 Operaciones cerradas</h3>
+                                <div class="analysis-controls">
+                                    <button id="toggleChartMode" class="chart-mode-btn" title="Cambiar vista de gráfico">Vista línea</button>
+                                    <div class="analysis-total" id="analysisTotalValue">—</div>
+                                </div>
+                            </div>
+                            <div class="analysis-content">
+                                <div class="chart-wrapper">
+                                    <canvas id="closedChart" style="max-height: 200px;"></canvas>
+                                </div>
+                            </div>
                         </div>
                     </div>
-                    <div class="analysis-content">
-                        <div class="chart-wrapper">
-                            <canvas id="closedChart" style="max-height: 200px;"></canvas>
+
+                    <div class="tabs main-tabs">
+                        <button class="tab-button active" data-tab="positions">📊 Posiciones</button>
+                        <button class="tab-button" data-tab="activity">🔄 Actividad</button>
+                        <button class="tab-button" data-tab="closed">📉 Cerradas</button>
+                        <button class="tab-button" data-tab="consolidated">📋 Consolidado</button>
+                        <button class="tab-button" data-tab="calendar">📅 Calendario</button>
+                    </div>
+
+                    <div id="positions" class="tab-content active">
+                        <div class="table-container">
+                            <table>
+                                <thead>
+                                    <tr><th>Slug</th><th>Outcome</th><th class="text-right">Size</th><th class="text-right">Avg Price</th><th class="text-right">Initial Value</th><th class="text-right">Cash PnL</th><th class="text-right">If Win</th></tr>
+                                </thead>
+                                <tbody id="positionsBody"><tr><td colspan="7" class="empty-state">Ingresa una wallet para ver sus posiciones</td></tr></tbody>
+                            </table>
                         </div>
                     </div>
-                </div>
-            </div>
-
-            <div class="tabs main-tabs">
-                <button class="tab-button active" data-tab="positions">📊 Posiciones</button>
-                <button class="tab-button" data-tab="activity">🔄 Actividad</button>
-                <button class="tab-button" data-tab="closed">📉 Cerradas</button>
-                <button class="tab-button" data-tab="calendar">📅 Calendario</button>
-            </div>
-
-			<!-- POSICIONES - Con el orden exacto que pediste -->
-			<div id="positions" class="tab-content active">
-				<div class="table-container">
-					<table>
-						<thead>
-							<tr>
-								<th>Slug</th>
-								<th>Outcome</th>
-								<th class="text-right">Size</th>
-								<th class="text-right">Avg Price</th>
-								<th class="text-right">Initial Value</th>
-								<th class="text-right">Cash PnL</th>
-								<th class="text-right">If Win</th>
-							</tr>
-						</thead>
-						<tbody id="positionsBody">
-							<tr>
-								<td colspan="7" class="empty-state">
-									Ingresa una wallet para ver sus posiciones
-								</td>
-							</tr>
-						</tbody>
-					</table>
-				</div>
-			</div>
-			            <!-- ACTIVIDAD - Con Price movido entre Outcome y Shares -->
-            <div id="activity" class="tab-content">
-                <div class="table-container">
-                    <table>
-                        <thead>
-                            <tr>
-                                <th>Fecha</th>
-                                <th>Title</th>
-                                <th>Side</th>
-                                <th>Outcome</th>
-                                <th class="text-right">Price</th>
-                                <th class="text-right">Shares</th>
-                                <th class="text-right">USDC</th>
-                            </tr>
-                        </thead>
-                        <tbody id="activityBody">
-                            <tr>
-                                <td colspan="7" class="empty-state">
-                                    Ingresa una wallet para ver su actividad
-                                </td>
-                            </tr>
-                        </tbody>
-                    </table>
-                </div>
-                <div class="load-more-container">
-                    <button id="loadMoreActivityBtn" class="load-more-btn" style="display: none;">Cargar más actividad</button>
-                </div>
-            </div>
-            <div id="closed" class="tab-content">
-                <div class="table-container">
-                    <table>
-                        <thead>
-                            <tr>
-                                <th>Fecha cierre</th>
-                                <th>Slug</th>
-                                <th>Outcome</th>
-                                <th class="text-right">Inv. ($)</th>
-                                <th class="text-right">Avg Price</th>
-                                <th class="text-right">Shares</th>
-                                <th class="text-right">Realized PNL</th>
-                            </tr>
-                        </thead>
-                        <tbody id="closedBody">
-                            <tr>
-                                <td colspan="7" class="empty-state">
-                                    Ingresa una wallet para ver sus posiciones cerradas
-                                </td>
-                            </tr>
-                        </tbody>
-                    </table>
-                </div>
-                <div class="load-more-container">
-                    <button id="loadMoreClosedBtn" class="load-more-btn" style="display: none;">Cargar más posiciones cerradas</button>
-                </div>
-            </div>
-            <div id="calendar" class="tab-content">
-                <div class="calendar-header-row">
-                    <div class="calendar-header-title">
-                        <h3>Calendario</h3>
-                        <p class="raw-subtitle">Ganancias por día según operaciones cerradas. Fees sin descontar, horario americano.</p>
+                    
+                    <div id="activity" class="tab-content">
+                        <div class="table-container">
+                            <table>
+                                <thead><tr><th>Fecha</th><th>Title</th><th>Side</th><th>Outcome</th><th class="text-right">Price</th><th class="text-right">Shares</th><th class="text-right">USDC</th></tr></thead>
+                                <tbody id="activityBody"><tr><td colspan="7" class="empty-state">Ingresa una wallet para ver su actividad</td></tr></tbody>
+                            </table>
+                        </div>
                     </div>
-                    <div class="calendar-controls">
-                        <button id="calendarPrevBtn" class="calendar-nav-btn" title="Mes anterior">←</button>
-                        <span id="calendarTitle" class="calendar-title">Mes</span>
-                        <button id="calendarNextBtn" class="calendar-nav-btn" title="Mes siguiente">→</button>
+                    
+                    <div id="closed" class="tab-content">
+                        <div class="table-container">
+                            <table>
+                                <thead><tr><th>Fecha cierre</th><th>Slug</th><th>Outcome</th><th class="text-right">Inv. ($)</th><th class="text-right">Avg Price</th><th class="text-right">Shares</th><th class="text-right">Realized PNL</th></tr></thead>
+                                <tbody id="closedBody"><tr><td colspan="7" class="empty-state">Ingresa una wallet para ver sus posiciones cerradas</td></tr></tbody>
+                            </table>
+                        </div>
                     </div>
-                </div>
-                <div class="calendar-panel">
-                    <div class="calendar-table-wrapper">
-                        <table class="calendar-table">
-                            <thead>
-                                <tr>
-                                    <th>Lun</th>
-                                    <th>Mar</th>
-                                    <th>Mier</th>
-                                    <th>Jue</th>
-                                    <th>Vier</th>
-                                    <th>Sab</th>
-                                    <th>Dom</th>
-                                </tr>
-                            </thead>
-                            <tbody id="calendarBody"></tbody>
-                        </table>
-                    </div>
-                    <div class="calendar-week-summary">
-                        <h4>Profit semanal</h4>
-                        <div id="calendarWeekSummary"></div>
-                    </div>
-                </div>
-            </div>
-<div id="raw-positions" class="tab-content">
-                <div class="raw-header">
-                    <h3>📦 /positions - RAW JSON</h3>
-                    <p class="raw-subtitle">Respuesta exacta del endpoint de posiciones abiertas</p>
-                </div>
-                <div id="rawPositionsContent" class="raw-container">
-                    <pre class="raw-empty">Busca una wallet para ver los datos RAW</pre>
-                </div>
-            </div>
 
-            <div id="raw-activity" class="tab-content">
-                <div class="raw-header">
-                    <h3>📦 /activity - RAW JSON</h3>
-                    <p class="raw-subtitle">Respuesta exacta del endpoint de actividad</p>
-                </div>
-                <div id="rawActivityContent" class="raw-container">
-                    <pre class="raw-empty">Busca una wallet para ver los datos RAW</pre>
-                </div>
-            </div>
+                    <div id="consolidated" class="tab-content">
+                        <div class="table-container">
+                            <table>
+                                <thead><tr><th>Fecha cierre</th><th>Slug</th><th>Outcome</th><th class="text-right">Inv. ($)</th><th class="text-right">Avg Price</th><th class="text-right">Shares</th><th class="text-right">PNL</th></tr></thead>
+                                <tbody id="consolidatedBody"><tr><td colspan="7" class="empty-state">Ingresa una wallet para ver el consolidado</td></tr></tbody>
+                            </table>
+                        </div>
+                    </div>
 
-            <div id="raw-closed" class="tab-content">
-                <div class="raw-header">
-                    <h3>📦 /closed-positions - RAW JSON</h3>
-                    <p class="raw-subtitle">Respuesta exacta del endpoint de posiciones cerradas</p>
+                    <div id="calendar" class="tab-content">
+                        <div class="calendar-header-row">
+                            <div class="calendar-header-title"><h3>Calendario</h3><p class="raw-subtitle">Ganancias por día según operaciones cerradas. Fees sin descontar, horario americano.</p></div>
+                            <div class="calendar-header-options">
+                                <label class="calendar-toggle-label" for="useConsolidatedCalendar">
+                                    <input type="checkbox" id="useConsolidatedCalendar">
+                                    Usar datos de consolidado
+                                </label>
+                            </div>
+                            <div class="calendar-controls"><button id="calendarPrevBtn" class="calendar-nav-btn">←</button><span id="calendarTitle" class="calendar-title">Mes</span><button id="calendarNextBtn" class="calendar-nav-btn">→</button></div>
+                        </div>
+                        <div class="calendar-panel">
+                            <div class="calendar-table-wrapper"><table class="calendar-table"><thead><tr><th>Lun</th><th>Mar</th><th>Mier</th><th>Jue</th><th>Vier</th><th>Sab</th><th>Dom</th></tr></thead><tbody id="calendarBody"></tbody></table></div>
+                            <div class="calendar-week-summary"><h4>Profit semanal</h4><div id="calendarWeekSummary"></div></div>
+                        </div>
+                    </div>
+
+                    <div id="raw-positions" class="tab-content"><div class="raw-header"><h3>📦 /positions - RAW JSON</h3><p class="raw-subtitle">Respuesta exacta del endpoint de posiciones abiertas</p></div><div id="rawPositionsContent" class="raw-container"><pre class="raw-empty">Busca una wallet para ver los datos RAW</pre></div></div>
+                    <div id="raw-activity" class="tab-content"><div class="raw-header"><h3>📦 /activity - RAW JSON</h3><p class="raw-subtitle">Respuesta exacta del endpoint de actividad</p></div><div id="rawActivityContent" class="raw-container"><pre class="raw-empty">Busca una wallet para ver los datos RAW</pre></div></div>
+                    <div id="raw-closed" class="tab-content"><div class="raw-header"><h3>📦 /closed-positions - RAW JSON</h3><p class="raw-subtitle">Respuesta exacta del endpoint de posiciones cerradas</p></div><div id="rawClosedContent" class="raw-container"><pre class="raw-empty">Busca una wallet para ver los datos RAW</pre></div></div>
                 </div>
-                <div id="rawClosedContent" class="raw-container">
-                    <pre class="raw-empty">Busca una wallet para ver los datos RAW</pre>
-                </div>
-            </div>
-        </div>
-        </main>
+            </main>
         </div>
 
-        <div class="loading" id="loading">
-            <div class="spinner"></div>
-            <span>Cargando datos...</span>
-        </div>
+        <div class="loading" id="loading"><div class="spinner"></div><span>Cargando datos...</span></div>
     </div>
 
-    <!-- Modal para detalles del día en calendario -->
-    <div id="calendarDayModal" class="modal">
-        <div class="modal-content">
-            <div class="modal-header">
-                <div>
-                    <h3 id="modalDayTitle">Trades del día</h3>
-                    <div class="modal-header-actions">
-                        <span id="modalDayPnl" class="modal-day-pnl">PNL del día: —</span>
-                        <button id="modalChartModeBtn" class="modal-chart-toggle-btn" title="Cambiar a gráfico de puntos">Vista puntos</button>
-                    </div>
-                </div>
-                <button id="closeModalBtn" class="close-modal-btn">&times;</button>
-            </div>
-            <div class="modal-body">
-                <div class="modal-chart-wrapper">
-                    <canvas id="modalDayChart" style="max-height: 200px;"></canvas>
-                </div>
-                <table id="modalTradesTable" class="modal-trades-table">
-                    <thead>
-                        <tr>
-                            <th>Título</th>
-                            <th>Outcome</th>
-                            <th class="text-right">Inv. ($)</th>
-                            <th class="text-right">Avg Price</th>
-                            <th class="text-right">Shares</th>
-                            <th class="text-right">Realized PNL</th>
-                        </tr>
-                    </thead>
-                    <tbody id="modalTradesBody">
-                    </tbody>
-                </table>
-            </div>
-        </div>
-    </div>
+    <div id="calendarDayModal" class="modal"><div class="modal-content"><div class="modal-header"><div><h3 id="modalDayTitle">Trades del día</h3><div class="modal-header-actions"><span id="modalDayPnl" class="modal-day-pnl">PNL del día: —</span><button id="modalChartModeBtn" class="modal-chart-toggle-btn">Vista puntos</button></div></div><button id="closeModalBtn" class="close-modal-btn">&times;</button></div><div class="modal-body"><div class="modal-chart-wrapper"><canvas id="modalDayChart" style="max-height: 200px;"></canvas></div><table id="modalTradesTable" class="modal-trades-table"><thead><tr><th>Slug</th><th>Outcome</th><th class="text-right">Inv. ($)</th><th class="text-right">Avg Price</th><th class="text-right">Shares</th><th class="text-right">Realized PNL</th></tr></thead><tbody id="modalTradesBody"></tbody></table></div></div></div>
 
-    <!-- SCRIPTS EN ORDEN CORRECTO -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.js"></script>
     <script src="api.js"></script>
     <script src="activity.js"></script>
     <script src="closed.js"></script>
+    <script src="consolidated.js"></script>
     <script src="main.js"></script>
     
     <script>
-        // Theme toggle: persist in localStorage and apply 'dark' class on body and html
         (function() {
             const btn = document.getElementById('themeToggle');
-            console.log('Theme toggle init, button found?', !!btn);
             if (!btn) return;
-
             function applyTheme(theme) {
-                console.log('Applying theme:', theme);
                 if (theme === 'dark') {
                     document.body.classList.add('dark');
                     document.documentElement.classList.add('dark');
                     document.documentElement.setAttribute('data-theme', 'dark');
                     btn.textContent = '☀️';
-                    btn.title = 'Cambiar a modo claro';
                 } else {
                     document.body.classList.remove('dark');
                     document.documentElement.classList.remove('dark');
                     document.documentElement.setAttribute('data-theme', 'light');
                     btn.textContent = '🌙';
-                    btn.title = 'Cambiar a modo oscuro';
                 }
             }
-
             const saved = localStorage.getItem('theme') || 'light';
             applyTheme(saved);
-
             btn.addEventListener('click', () => {
-                const current = document.body.classList.contains('dark') ? 'dark' : 'light';
-                const next = current === 'dark' ? 'light' : 'dark';
-                console.log('Theme toggle clicked — current:', current, 'next:', next);
+                const next = document.body.classList.contains('dark') ? 'light' : 'dark';
                 localStorage.setItem('theme', next);
                 applyTheme(next);
             });
