@@ -116,6 +116,15 @@ class ClosedPositionsTab {
             return date;
         };
 
+        const groupedByTitleInSlug = (slugPositions) => {
+            return Object.entries(slugPositions.reduce((groups, pos) => {
+                const title = pos.title || '—';
+                if (!groups[title]) groups[title] = [];
+                groups[title].push(pos);
+                return groups;
+            }, {}));
+        };
+
         const sortedMarketEntries = Object.entries(groupedBySlug)
             .map(([slug, slugPositions]) => {
                 const title = slugPositions[0]?.title || '';
@@ -160,29 +169,30 @@ class ClosedPositionsTab {
             }
             isFirst = false;
 
-            // Calcular realizedPnl total del slug
-            const totalRealizedPnl = slugPositions.reduce((sum, pos) => sum + (pos.realizedPnl || 0), 0);
-            const title = slugPositions[0].title || '—';
-            const realizedPnlDisplay = this.formatPNL(totalRealizedPnl);
+            const titleGroups = groupedByTitleInSlug(slugPositions);
+            titleGroups.forEach(([groupTitle, positions]) => {
+                const groupPnl = this.app && typeof this.app.getGroupedPnl === 'function'
+                    ? this.app.getGroupedPnl(positions)
+                    : positions.reduce((sum, pos) => sum + (pos.realizedPnl || 0), 0);
+                const groupPnlSign = groupPnl >= 0 ? '+' : '-';
+                const groupPnlClass = groupPnl >= 0 ? 'pnl-positive' : 'pnl-negative';
+                html += `<tr class="group-title"><td colspan="7" class="title-cell">${groupTitle} <small class="market-total ${groupPnlClass}">(${groupPnlSign}${this.formatPNL(groupPnl).replace(/<span.*?>(.*)<\/span>/, '$1')})</small></td></tr>`;
 
-            // Fila de título con realizedPnl total
-            html += `<tr class="group-title"><td colspan="7" class="title-cell">${title} <small class="market-total ${totalRealizedPnl >= 0 ? 'pnl-positive' : 'pnl-negative'}">(${totalRealizedPnl >= 0 ? '+' : ''}${this.formatPNL(totalRealizedPnl).replace(/<span.*?>(.*)<\/span>/, '$1')})</small></td></tr>`;
+                positions.forEach(pos => {
+                    const timestamp = pos.closeTimestamp || pos.timestamp;
+                    const totalBought = pos.totalBought || pos.size || 0;
+                    const avgPrice = pos.avgPrice || 0;
+                    const investment = this.calculateInvestment(totalBought, avgPrice);
 
-            slugPositions.forEach(pos => {
-                const timestamp = pos.closeTimestamp || pos.timestamp;
-                const totalBought = pos.totalBought || pos.size || 0;
-                const avgPrice = pos.avgPrice || 0;
-                const investment = this.calculateInvestment(totalBought, avgPrice);
-
-                // Añadir recuadro de color y emoji al lado del outcome según el realizedPnl de la posición
-                const realizedPnl = pos.realizedPnl || 0;
-                const outcomeText = pos.outcome || '—';
-                const outcomeLower = outcomeText.toString().toLowerCase();
-                let dotClass = 'positive';
-                if (outcomeLower.includes('up')) dotClass = 'positive';
-                else if (outcomeLower.includes('down')) dotClass = 'negative';
-                else dotClass = realizedPnl >= 0 ? 'positive' : 'negative';
-                html += `
+                    // Añadir recuadro de color y emoji al lado del outcome según el realizedPnl de la posición
+                    const realizedPnl = pos.realizedPnl || 0;
+                    const outcomeText = pos.outcome || '—';
+                    const outcomeLower = outcomeText.toString().toLowerCase();
+                    let dotClass = 'positive';
+                    if (outcomeLower.includes('up')) dotClass = 'positive';
+                    else if (outcomeLower.includes('down')) dotClass = 'negative';
+                    else dotClass = realizedPnl >= 0 ? 'positive' : 'negative';
+                    html += `
             <tr>
                 <td>${this.formatDate(timestamp)}</td>
                 <td><a href="https://polymarket.com/event/${slug}" target="_blank" rel="noopener noreferrer"><code class="slug">${slug}</code></a></td>
@@ -192,6 +202,7 @@ class ClosedPositionsTab {
                 <td class="text-right">${this.formatNumber(totalBought)}</td>
                 <td class="text-right">${this.formatPNL(pos.realizedPnl || 0)}</td>
             </tr>`;
+                });
             });
         });
 
