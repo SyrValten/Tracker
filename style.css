@@ -2147,3 +2147,113 @@ html[data-theme="dark"] .trade-slug, body.dark .trade-slug {
 html[data-theme="dark"] .trade-slug a, body.dark .trade-slug a {
     color: #60a5fa;
 }
+/* Estilos para la pestaña Consolidado */
+.status-badge {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-size: 0.7rem;
+    font-weight: 600;
+    white-space: nowrap;
+}
+
+.status-badge.closed {
+    background: #e2e8f0;
+    color: #475569;
+}
+
+.status-badge.open {
+    background: #dcfce7;
+    color: #166534;
+}
+
+.closed-row {
+    opacity: 0.85;
+    background-color: rgba(100, 116, 139, 0.03);
+}
+
+.open-row {
+    background-color: rgba(34, 197, 94, 0.02);
+}
+
+.market-summary-row {
+    background: #f1f5f9;
+    font-weight: 500;
+    border-top: 1px solid #e2e8f0;
+}
+
+.market-summary-row td {
+    padding: 0.6rem 0.5rem;
+}
+
+/* Dark mode para consolidado */
+html[data-theme="dark"] .status-badge.closed,
+body.dark .status-badge.closed {
+    background: #1e293b;
+    color: #94a3b8;
+}
+
+html[data-theme="dark"] .status-badge.open,
+body.dark .status-badge.open {
+    background: #064e3b;
+    color: #86efac;
+}
+
+html[data-theme="dark"] .closed-row,
+body.dark .closed-row {
+    background-color: rgba(148, 163, 184, 0.05);
+}
+
+html[data-theme="dark"] .open-row,
+body.dark .open-row {
+    background-color: rgba(34, 197, 94, 0.05);
+}
+
+html[data-theme="dark"] .market-summary-row,
+body.dark .market-summary-row {
+    background: #0f172a;
+    border-top-color: #1e293b;
+}
+
+/* Responsive para consolidado */
+@media (max-width: 1000px) {
+    #consolidated table {
+        font-size: 0.75rem;
+    }
+    
+    #consolidated td,
+    #consolidated th {
+        padding: 0.5rem 0.25rem;
+    }
+}
+/* Estilos para la pestaña Consolidado */
+.open-badge {
+    display: inline-block;
+    background: #dcfce7;
+    color: #166534;
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-size: 0.7rem;
+    font-weight: 600;
+    white-space: nowrap;
+}
+
+.closed-row {
+    background-color: transparent;
+}
+
+.open-row {
+    background-color: rgba(34, 197, 94, 0.03);
+}
+
+/* Dark mode */
+html[data-theme="dark"] .open-badge,
+body.dark .open-badge {
+    background: #064e3b;
+    color: #86efac;
+}
+
+html[data-theme="dark"] .open-row,
+body.dark .open-row {
+    background-color: rgba(34, 197, 94, 0.08);
+}
