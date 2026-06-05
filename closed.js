@@ -80,12 +80,9 @@ class ClosedPositionsTab {
             groupedBySlug[slug].push(pos);
         });
 
-        const getTimestamp = pos => Number(pos.closeTimestamp ?? pos.timestamp ?? 0);
-
-        // Función para parsear fecha y hora del título
+        // Función para parsear fecha y hora del título (fallback si no hay timestamp)
         const parseTitleDateTime = (title) => {
             const dateTimeMatch = title.match(/([A-Za-z]+)\s+(\d+),\s*(\d+):(\d+)(AM|PM)/);
-            console.log(`Parsing title: "${title}" -> match:`, dateTimeMatch);
             if (!dateTimeMatch) return new Date(0);
 
             const monthStr = dateTimeMatch[1];
@@ -112,7 +109,6 @@ class ClosedPositionsTab {
 
             const year = new Date().getFullYear(); // Asumir año actual
             const date = new Date(year, month, day, hour24, minute);
-            console.log(`Parsed: ${monthStr} ${day}, ${hourStr}:${minuteStr}${ampm} -> ${date.toISOString()}`);
             return date;
         };
 
@@ -125,44 +121,34 @@ class ClosedPositionsTab {
             }, {}));
         };
 
+        // Para ordenar cada mercado usamos el timestamp REAL de cierre (closeTimestamp),
+        // que siempre existe, en lugar de parsear el título (que puede fallar y enterrar
+        // los trades más recientes). Así coincide con la pestaña Consolidado.
+        const getMarketTime = (pos) => {
+            const ts = Number(pos.closeTimestamp ?? pos.timestamp ?? 0);
+            if (ts > 0) return ts * 1000;
+            const titleTime = parseTitleDateTime(pos.title || '').getTime();
+            return titleTime > 0 ? titleTime : 0;
+        };
+
         const sortedMarketEntries = Object.entries(groupedBySlug)
             .map(([slug, slugPositions]) => {
                 const title = slugPositions[0]?.title || '';
                 const marketName = title.split(' - ')[0] || 'Unknown Market';
-                const latestTimestamp = Math.max(...slugPositions.map(getTimestamp));
-                
-                // Extraer fecha del título para ordenar
-                const titleDateTime = parseTitleDateTime(title);
-                
-                return { slug, slugPositions, marketName, latestTimestamp, titleDateTime };
+                const latestTimestamp = Math.max(...slugPositions.map(getMarketTime));
+                return { slug, slugPositions, marketName, latestTimestamp };
             })
-            .sort((a, b) => {
-                // Primero ordenar por nombre de mercado alfabéticamente
-                const marketCompare = a.marketName.localeCompare(b.marketName, 'en', { numeric: true, sensitivity: 'base' });
-                if (marketCompare !== 0) return marketCompare;
-                // Luego por fecha/hora del título descendente
-                return b.titleDateTime - a.titleDateTime;
-            });
+            // Ordenar por fecha más reciente primero (newest first), como Consolidado
+            .sort((a, b) => b.latestTimestamp - a.latestTimestamp);
 
         let html = '';
         let isFirst = true;
 
         sortedMarketEntries.forEach(({ slug, slugPositions, marketName }) => {
-            console.log(`Sorting ${slugPositions.length} positions for slug: ${slug} (market: ${marketName})`);
-
             slugPositions.sort((a, b) => {
-                const titleA = a.title || '';
-                const titleB = b.title || '';
-
-                const dateTimeA = parseTitleDateTime(titleA);
-                const dateTimeB = parseTitleDateTime(titleB);
-
-                console.log(`Comparing: "${titleA}" -> ${dateTimeA.toISOString()} vs "${titleB}" -> ${dateTimeB.toISOString()}`);
-
-                // Ordenar descendente: más reciente primero
-                return dateTimeB - dateTimeA;
+                // Más reciente primero, usando el timestamp real de cierre
+                return getMarketTime(b) - getMarketTime(a);
             });
-            console.log(`Sorted titles: ${slugPositions.map(p => p.title).join(', ')}`);
 
             if (!isFirst) {
                 html += '<tr class="group-separator"><td colspan="7"></td></tr>';
@@ -184,14 +170,12 @@ class ClosedPositionsTab {
                     const avgPrice = pos.avgPrice || 0;
                     const investment = this.calculateInvestment(totalBought, avgPrice);
 
-                    // Añadir recuadro de color y emoji al lado del outcome según el realizedPnl de la posición
                     const realizedPnl = pos.realizedPnl || 0;
                     const outcomeText = pos.outcome || '—';
-                    const outcomeLower = outcomeText.toString().toLowerCase();
-                    let dotClass = 'positive';
-                    if (outcomeLower.includes('up')) dotClass = 'positive';
-                    else if (outcomeLower.includes('down')) dotClass = 'negative';
-                    else dotClass = realizedPnl >= 0 ? 'positive' : 'negative';
+
+                    // Color del badge: verde si esta posición ganó dinero, rojo si perdió
+                    const dotClass = realizedPnl >= 0 ? 'positive' : 'negative';
+
                     html += `
             <tr>
                 <td>${this.formatDate(timestamp)}</td>

@@ -70,14 +70,6 @@
                                 </div>
                             </div>
 
-                            <div class="profile-right">
-                                <div class="leaderboard-tabs">
-                                    <button class="lb-tab-button" data-period="DAY">📅 Dia</button>
-                                    <button class="lb-tab-button" data-period="WEEK">📆 Semana</button>
-                                    <button class="lb-tab-button" data-period="MONTH">📋 Mes</button>
-                                    <button class="lb-tab-button active" data-period="ALL">🏆 All</button>
-                                </div>
-                            </div>
 
                             <div class="profile-wallet-row">
                                 <div>
@@ -94,6 +86,16 @@
                         <div class="analysis-card">
                             <div class="analysis-header">
                                 <h3 id="analysisTitle">📈 Operaciones cerradas</h3>
+                                <!-- Botones de período dentro del gráfico -->
+                                <div class="chart-period-controls">
+                                    <button class="lb-tab-button" data-period="DAY">24h</button>
+                                    <button class="lb-tab-button" data-period="WEEK">7d</button>
+                                    <button class="lb-tab-button" data-period="MONTH">30d</button>
+                                    <button class="lb-tab-button" data-period="HOY">Hoy</button>
+                                    <button class="lb-tab-button" data-period="SEM">Semana</button>
+                                    <button class="lb-tab-button" data-period="MES">Mes</button>
+                                    <button class="lb-tab-button lb-tab-full active" data-period="ALL">🏆 Todo</button>
+                                </div>
                                 <div class="analysis-controls">
                                     <button id="toggleChartMode" class="chart-mode-btn" title="Cambiar vista de gráfico">Vista línea</button>
                                     <div class="analysis-total" id="analysisTotalValue">—</div>

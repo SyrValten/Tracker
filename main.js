@@ -6,7 +6,7 @@ class App {
         this.currentWallet = null;
         this.currentLbPeriod = 'ALL';
         this.chartMode = 'points';
-        this.modalChartMode = 'line';
+        this.modalChartMode = 'points';
         this.leaderboardData = {};
         this.tradedCount = null;
         this.favorites = [];
@@ -560,9 +560,12 @@ class App {
     
     getPeriodText(period) {
         switch(period) {
-            case 'DAY': return 'Último día';
-            case 'WEEK': return 'Última semana';
-            case 'MONTH': return 'Último mes';
+            case 'DAY':   return 'Últimas 24h';
+            case 'WEEK':  return 'Últimos 7d';
+            case 'MONTH': return 'Últimos 30d';
+            case 'HOY':   return 'Hoy';
+            case 'SEM':   return 'Semana';
+            case 'MES':   return 'Mes';
             default: return 'Todo el historial';
         }
     }
@@ -662,26 +665,12 @@ class App {
         return items.reduce((sum, item) => sum + this.getConsolidatedItemPnl(item), 0);
     }
 
-    // Filtrar items consolidados por período
+    // Filtrar items consolidados por período (usa el mismo getPeriodCutoff)
     filterItemsByPeriod(items, period) {
         if (!items || items.length === 0 || period === 'ALL') {
             return items;
         }
-        
-        const now = Date.now();
-        const dayMs = 24 * 60 * 60 * 1000;
-        const weekMs = 7 * dayMs;
-        const monthMs = 30 * dayMs;
-        let cutoff = 0;
-        
-        if (period === 'DAY') {
-            cutoff = now - dayMs;
-        } else if (period === 'WEEK') {
-            cutoff = now - weekMs;
-        } else if (period === 'MONTH') {
-            cutoff = now - monthMs;
-        }
-        
+        const cutoff = this.getPeriodCutoff(period);
         return items.filter(item => {
             const timestamp = this.getConsolidatedItemTimestamp(item);
             return timestamp >= cutoff;
@@ -732,25 +721,41 @@ class App {
         }
     }
 
+    // Calcula el inicio del período según hora local del usuario
+    getPeriodCutoff(period) {
+        const now = new Date();
+        const dayMs = 24 * 60 * 60 * 1000;
+        switch (period) {
+            case 'DAY':   return Date.now() - dayMs;
+            case 'WEEK':  return Date.now() - 7 * dayMs;
+            case 'MONTH': return Date.now() - 30 * dayMs;
+            case 'HOY': {
+                // Desde medianoche de hoy en hora local
+                const hoy = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+                return hoy.getTime();
+            }
+            case 'SEM': {
+                // Desde el lunes de esta semana en hora local
+                const d = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+                const day = d.getDay(); // 0=dom,1=lun...
+                const diff = day === 0 ? -6 : 1 - day; // retroceder al lunes
+                d.setDate(d.getDate() + diff);
+                return d.getTime();
+            }
+            case 'MES': {
+                // Desde el día 1 del mes en hora local
+                const mes = new Date(now.getFullYear(), now.getMonth(), 1);
+                return mes.getTime();
+            }
+            default: return 0;
+        }
+    }
+
     filterClosedPositionsByPeriod(closedPositions, period) {
         if (!Array.isArray(closedPositions) || period === 'ALL') {
             return closedPositions;
         }
-
-        const now = Date.now();
-        const dayMs = 24 * 60 * 60 * 1000;
-        const weekMs = 7 * dayMs;
-        const monthMs = 30 * dayMs;
-        let cutoff = 0;
-
-        if (period === 'DAY') {
-            cutoff = now - dayMs;
-        } else if (period === 'WEEK') {
-            cutoff = now - weekMs;
-        } else if (period === 'MONTH') {
-            cutoff = now - monthMs;
-        }
-
+        const cutoff = this.getPeriodCutoff(period);
         return closedPositions.filter(pos => {
             const timestamp = (pos.closeTimestamp || pos.timestamp || 0) * 1000;
             return timestamp >= cutoff;
@@ -1617,6 +1622,7 @@ class App {
         const firstWeekday = (firstDayOfMonth.getDay() + 6) % 7;
 
         const weekSums = [];
+        const tradesByWeek = []; // trades agrupados por fila/semana del calendario
         let day = 1;
         let html = '';
 
@@ -1638,11 +1644,18 @@ class App {
                     }
                     html += '</td>';
                     weekSums[week] = (weekSums[week] || 0) + profit;
+                    // Acumular los trades de este día en su semana
+                    const dayTrades = tradesByDay.get(key) || [];
+                    if (!tradesByWeek[week]) tradesByWeek[week] = [];
+                    tradesByWeek[week].push(...dayTrades);
                     day++;
                 }
             }
             html += '</tr>';
         }
+
+        // Guardar para los handlers de click de las semanas
+        this.tradesByWeek = tradesByWeek;
 
         this.calendarBody.innerHTML = html;
 
@@ -1662,26 +1675,68 @@ class App {
 
         const monthTotal = weekSums.reduce((sum, profit) => sum + (profit || 0), 0);
         const monthTotalClass = monthTotal > 0 ? 'pnl-positive' : monthTotal < 0 ? 'pnl-negative' : 'neutral';
-        const weekHtml = `<div class="week-summary-row month-total"><span>Total mes</span><span class="${monthTotalClass}">${monthTotal > 0 ? '+' : ''}${this.formatCurrency(monthTotal)}</span></div>` +
+
+        // Todos los trades del mes (aplanando las semanas)
+        const tradesOfMonth = tradesByWeek.reduce((all, w) => all.concat(w || []), []);
+        this.tradesOfMonth = tradesOfMonth;
+        this.monthLabel = `${monthName.charAt(0).toUpperCase() + monthName.slice(1)} ${year}`;
+        const monthClickable = tradesOfMonth.length > 0 ? ' week-summary-clickable' : '';
+
+        const weekHtml = `<div class="week-summary-row month-total${monthClickable}" data-month="1"><span>Total mes</span><span class="${monthTotalClass}">${monthTotal > 0 ? '+' : ''}${this.formatCurrency(monthTotal)}</span></div>` +
             weekSums.map((profit, index) => {
                 const profitClass = profit > 0 ? 'pnl-positive' : profit < 0 ? 'pnl-negative' : 'neutral';
-                return `<div class="week-summary-row"><span>Semana ${index + 1}</span><span class="${profitClass}">${profit > 0 ? '+' : ''}${this.formatCurrency(profit)}</span></div>`;
+                const hasTrades = (tradesByWeek[index] || []).length > 0;
+                const clickable = hasTrades ? ' week-summary-clickable' : '';
+                return `<div class="week-summary-row${clickable}" data-week="${index}"><span>Semana ${index + 1}</span><span class="${profitClass}">${profit > 0 ? '+' : ''}${this.formatCurrency(profit)}</span></div>`;
             }).join('');
 
         this.calendarWeekSummary.innerHTML = weekHtml || '<div class="week-summary-row"><span>Sin datos</span></div>';
+
+        // Click en una semana → abrir modal con los trades de esa semana
+        this.calendarWeekSummary.querySelectorAll('.week-summary-row[data-week]').forEach(row => {
+            if (!row.classList.contains('week-summary-clickable')) return;
+            row.addEventListener('click', () => {
+                const weekIdx = parseInt(row.dataset.week, 10);
+                const weekTrades = this.tradesByWeek[weekIdx] || [];
+                if (weekTrades.length > 0) {
+                    this.showCalendarWeekModal(weekIdx + 1, weekTrades);
+                }
+            });
+        });
+
+        // Click en "Total mes" → abrir modal con todos los trades del mes
+        const monthRow = this.calendarWeekSummary.querySelector('.week-summary-row[data-month]');
+        if (monthRow && monthRow.classList.contains('week-summary-clickable')) {
+            monthRow.addEventListener('click', () => {
+                if (this.tradesOfMonth.length > 0) {
+                    this.showCalendarMonthModal(this.monthLabel, this.tradesOfMonth);
+                }
+            });
+        }
     }
 
     showCalendarDayModal(day, month, year, trades) {
         if (!trades || trades.length === 0) return;
-
         const dateStr = new Date(year, month, day).toLocaleDateString('es-ES', {
-            weekday: 'long',
-            year: 'numeric',
-            month: 'long',
-            day: 'numeric'
+            weekday: 'long', year: 'numeric', month: 'long', day: 'numeric'
         });
+        this.openTradesModal(`Trades del ${dateStr}`, trades);
+    }
 
-        this.modalDayTitle.textContent = `Trades del ${dateStr}`;
+    showCalendarWeekModal(weekNumber, trades) {
+        if (!trades || trades.length === 0) return;
+        this.openTradesModal(`Trades de la Semana ${weekNumber}`, trades);
+    }
+
+    showCalendarMonthModal(monthLabel, trades) {
+        if (!trades || trades.length === 0) return;
+        this.openTradesModal(`Trades de ${monthLabel}`, trades);
+    }
+
+    openTradesModal(titleText, trades) {
+        if (!trades || trades.length === 0) return;
+
+        this.modalDayTitle.textContent = titleText;
         this.updateModalChartModeButton();
 
         const parseTitleDateTime = (title) => {
@@ -1785,9 +1840,15 @@ class App {
         });
 
         this.modalTradesBody.innerHTML = html;
-        this.renderModalDayChart(sortedTrades);
+        // IMPORTANTE: mostrar el modal ANTES de crear el gráfico.
+        // Si se crea con el modal en display:none, Chart.js mide el canvas a 0×0
+        // y las zonas de hover/tooltip quedan mal calculadas.
         this.calendarDayModal.style.display = 'block';
         document.body.style.overflow = 'hidden';
+        // Esperar a que el navegador calcule el layout del modal visible
+        requestAnimationFrame(() => {
+            this.renderModalDayChart(sortedTrades);
+        });
     }
 
     renderModalDayChart(trades) {
@@ -1865,7 +1926,9 @@ class App {
                     return absSharesA - totalInvestment;
                 }
             }
-            return trades.reduce((sum, pos) => sum + (pos.realizedPnl || 0), 0);
+            // getConsolidatedItemPnl maneja tanto cerradas (realizedPnl) como
+            // abiertas (PNL no realizado = currentValue - initialValue)
+            return trades.reduce((sum, pos) => sum + this.getConsolidatedItemPnl(pos), 0);
         };
 
         const groupedTradesForChart = Array.from(trades.reduce((groups, pos) => {
@@ -1936,14 +1999,14 @@ class App {
             options: {
                 responsive: true,
                 maintainAspectRatio: false,
+                // Tooltip al punto más cercano (mismo comportamiento que el gráfico principal)
                 interaction: {
                     intersect: false,
-                    mode: 'index'
+                    mode: 'nearest',
+                    axis: 'x'
                 },
                 plugins: {
-                    legend: {
-                        display: false
-                    },
+                    legend: { display: false },
                     tooltip: {
                         callbacks: {
                             title: function(context) {
@@ -1952,15 +2015,15 @@ class App {
                             },
                             label: function(context) {
                                 const dataPoint = timelineData[context[0].dataIndex];
-                                const accumulatedSign = context.parsed.y >= 0 ? '+' : '';
-                                const tradeSign = dataPoint.pnl >= 0 ? '+' : '';
+                                const accSign = context.parsed.y >= 0 ? '+' : '';
+                                const pnlSign = dataPoint.pnl >= 0 ? '+' : '';
                                 return [
                                     `Outcome: ${dataPoint.outcome}`,
                                     `Inversión: $${dataPoint.investment.toFixed(2)}`,
                                     `Avg Price: ${(dataPoint.avgPrice * 100).toFixed(1)}¢`,
                                     `Shares: ${dataPoint.shares.toFixed(2)}`,
-                                    `PNL Grupo: ${tradeSign}$${dataPoint.pnl.toFixed(2)}`,
-                                    `PNL Acumulado: ${accumulatedSign}$${context.parsed.y.toFixed(2)}`
+                                    `PNL Grupo: ${pnlSign}$${dataPoint.pnl.toFixed(2)}`,
+                                    `PNL Acumulado: ${accSign}$${context.parsed.y.toFixed(2)}`
                                 ];
                             }
                         },
