@@ -20,20 +20,60 @@ class PolymarketAPI {
         }
     }
 
-    async getPositions(user) {
-        return this.fetchFromAPI('/positions', {
-            user: user,
-            sizeThreshold: 1,
-            limit: 100,
-            sortBy: 'TOKENS',
-            sortDirection: 'DESC'
-        });
-    }
-
-    async fetchAllClosedPositions(user, pageSize = 50) {
+    async fetchAllPositions(user, pageSize = 100) {
         const results = [];
         let offset = 0;
-        const maxPages = 20; // proteger contra bucles infinitos, hasta 1000 posiciones
+        const maxPages = 50; // hasta 5000 posiciones abiertas (wallets de alto volumen)
+
+        for (let page = 0; page < maxPages; page++) {
+            const pageData = await this.fetchFromAPI('/positions', {
+                user: user,
+                sizeThreshold: 1,
+                limit: pageSize,
+                offset: offset,
+                sortBy: 'TOKENS',
+                sortDirection: 'DESC'
+            });
+
+            if (!Array.isArray(pageData)) {
+                throw new Error('Respuesta de positions inesperada: se esperaba un array');
+            }
+
+            results.push(...pageData);
+            if (pageData.length < pageSize) {
+                break;
+            }
+            offset += pageSize;
+        }
+
+        return results;
+    }
+
+    async getPositions(user) {
+        // Paginado: trae TODAS las posiciones abiertas, no solo las 100 más grandes.
+        // (wallets de alto volumen pueden tener cientos de perdedoras sin redimir
+        //  que de otro modo quedarían fuera del top 100 y falsearían el P&L)
+        return this.fetchAllPositions(user, 100);
+    }
+
+    async fetchAllClosedPositions(user, pageSize = 50, sinceTs = null) {
+        // OJO: /closed-positions sirve máx. 50 por página aunque pidas más.
+        // Por eso pageSize=50 (si pones 100 el bucle creería que se acabó).
+        // sinceTs (epoch segundos): si se pasa, para de paginar al llegar a
+        //   posiciones más viejas que ese corte (vienen ordenadas por fecha DESC)
+        //   → carga muchísimo más rápida para vistas recientes.
+        const results = [];
+        let offset = 0;
+        // Sin tope práctico: pagina hasta agotar. maxPages alto = red de
+        // seguridad contra bucles infinitos (1000 x 50 = 50.000 posiciones).
+        const maxPages = 1000;
+        const posTs = (p) => {
+            const t = Number(p.timestamp || p.closeTimestamp || 0);
+            if (t) return t;
+            const parts = String(p.slug || '').split('-');
+            const last = Number(parts[parts.length - 1]);
+            return (Number.isFinite(last) && last > 1e9) ? last : 0;
+        };
 
         for (let page = 0; page < maxPages; page++) {
             const pageData = await this.fetchFromAPI('/closed-positions', {
@@ -52,14 +92,24 @@ class PolymarketAPI {
             if (pageData.length < pageSize) {
                 break;
             }
+            // Filtro por fecha: si la última de la página ya es más vieja que el
+            // corte, no hace falta pedir más páginas (están ordenadas DESC).
+            if (sinceTs != null) {
+                const lastTs = posTs(pageData[pageData.length - 1]);
+                if (lastTs && lastTs < sinceTs) break;
+            }
             offset += pageSize;
         }
 
+        // Si se filtra por fecha, descartar las que quedaron por debajo del corte.
+        if (sinceTs != null) {
+            return results.filter(p => posTs(p) >= sinceTs);
+        }
         return results;
     }
 
-    async getClosedPositions(user) {
-        return this.fetchAllClosedPositions(user, 50);
+    async getClosedPositions(user, sinceTs = null) {
+        return this.fetchAllClosedPositions(user, 50, sinceTs);
     }
 
     async fetchAllActivity(user, pageSize = 50) {

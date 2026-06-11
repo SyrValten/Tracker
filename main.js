@@ -766,11 +766,11 @@ class App {
         this.tabButtons.forEach(btn => btn.classList.remove('active'));
         const activeTab = document.querySelector(`.tab-button[data-tab="${tabId}"]`);
         if (activeTab) activeTab.classList.add('active');
-        
+
         this.tabContents.forEach(content => content.classList.remove('active'));
         const activeContent = document.getElementById(tabId);
         if (activeContent) activeContent.classList.add('active');
-        
+
         this.activeTabId = tabId;
 
         const periodText = this.getPeriodText(this.currentLbPeriod);
@@ -1061,10 +1061,23 @@ class App {
         try {
             this.currentWallet = wallet;
             this.updateUrl(wallet);
-            
+
+            // Carga por periodo: limita cuánto se descarga (cerradas paran de
+            // paginar; abiertas se filtran tras traerlas). 0 = todo.
+            const loadDays = Number((document.getElementById('loadPeriodSelect') || {}).value || 0);
+            const sinceTs = loadDays > 0 ? (Math.floor(Date.now() / 1000) - loadDays * 86400) : null;
+            // timestamp de una posición (campo timestamp o sufijo del slug)
+            const posTs = (p) => {
+                const t = Number(p.timestamp || p.closeTimestamp || 0);
+                if (t) return t;
+                const parts = String(p.slug || '').split('-');
+                const last = Number(parts[parts.length - 1]);
+                return (Number.isFinite(last) && last > 1e9) ? last : 0;
+            };
+
             const [positions, closedPositions, activity, lbDay, lbWeek, lbMonth, lbAll, traded] = await Promise.allSettled([
                 this.api.getPositions(wallet),
-                this.api.getClosedPositions(wallet),
+                this.api.getClosedPositions(wallet, sinceTs),
                 this.api.getActivity(wallet),
                 this.api.getLeaderboard(wallet, 'DAY'),
                 this.api.getLeaderboard(wallet, 'WEEK'),
@@ -1073,15 +1086,22 @@ class App {
                 this.api.getTraded(wallet)
             ]);
 
-            const openPositionsData = positions.status === 'fulfilled' && Array.isArray(positions.value) ? positions.value : [];
+            let openPositionsData = positions.status === 'fulfilled' && Array.isArray(positions.value) ? positions.value : [];
             const closedPositionsData = closedPositions.status === 'fulfilled' && Array.isArray(closedPositions.value) ? closedPositions.value : [];
+
+            // Filtrar abiertas al periodo elegido (no se pueden cortar al paginar
+            // porque la API solo las ordena por tamaño, así que se filtran aquí).
+            if (sinceTs != null) {
+                openPositionsData = openPositionsData.filter(p => posTs(p) >= sinceTs);
+            }
 
             this.openPositionsData = openPositionsData;
             this.closedPositionsData = closedPositionsData;
 
             if (positions.status === 'fulfilled' && Array.isArray(positions.value)) {
-                this.rawPositionsData = positions.value;
-                this.renderPositions(positions.value);
+                // usar las abiertas YA filtradas por periodo (no positions.value crudo)
+                this.rawPositionsData = openPositionsData;
+                this.renderPositions(openPositionsData);
             } else {
                 this.rawPositionsData = null;
                 this.renderPositions([]);
@@ -1166,7 +1186,27 @@ class App {
         let html = '';
         let isFirst = true;
 
-        Object.entries(groupedBySlug).forEach(([slug, data]) => {
+        // Fecha de cada mercado: el sufijo numérico del slug es el epoch del slot
+        // (ej. sol-updown-5m-1781119200). Fallback a endDate / timestamp.
+        const groupTime = (slug, data) => {
+            const parts = String(slug).split('-');
+            const last = Number(parts[parts.length - 1]);
+            if (Number.isFinite(last) && last > 1e9) return last * 1000;
+            const pos = (data.positions && data.positions[0]) || {};
+            if (pos.endDate) {
+                const t = Date.parse(pos.endDate);
+                if (!isNaN(t)) return t;
+            }
+            if (pos.timestamp) return Number(pos.timestamp) * 1000;
+            return 0;
+        };
+
+        // Ordenar mercados por fecha DESC: más recientes arriba, antiguos abajo
+        const sortedGroups = Object.entries(groupedBySlug).sort((a, b) => {
+            return groupTime(b[0], b[1]) - groupTime(a[0], a[1]);
+        });
+
+        sortedGroups.forEach(([slug, data]) => {
             const slugPositions = data.positions;
             const marketTotalCashPnl = data.totalCashPnl || 0;
             if (!isFirst) {

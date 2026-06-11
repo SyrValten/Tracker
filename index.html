@@ -39,6 +39,16 @@
                         <input type="text" id="walletInput" placeholder="Ej. 0x...">
                         <button id="searchBtn">Buscar Wallet</button>
                     </div>
+                    <label class="quick-load-label" for="loadPeriodSelect"
+                           style="display:flex; align-items:center; gap:8px; margin-top:8px; font-size:13px;">
+                        Cargar periodo:
+                        <select id="loadPeriodSelect" style="padding:4px 8px; border-radius:6px;">
+                            <option value="1">Últimas 24h (más rápido)</option>
+                            <option value="7">Última semana</option>
+                            <option value="30">Último mes</option>
+                            <option value="0">Todo (más lento)</option>
+                        </select>
+                    </label>
                 </div>
 
                 <div class="error-message" id="errorMessage"></div>
