@@ -1089,6 +1089,21 @@ class App {
             let openPositionsData = positions.status === 'fulfilled' && Array.isArray(positions.value) ? positions.value : [];
             const closedPositionsData = closedPositions.status === 'fulfilled' && Array.isArray(closedPositions.value) ? closedPositions.value : [];
 
+            // FIX P&L = 0: algunas wallets aguantan a resolución y redimen, así que
+            // la API deja realizedPnl=0 aunque el mercado ya resolvió (curPrice 0/1).
+            // En ese caso lo calculamos: P&L = shares * (curPrice - avgPrice).
+            closedPositionsData.forEach(p => {
+                const rp = Number(p.realizedPnl);
+                if (!rp) {   // 0, null, undefined o NaN
+                    const shares = Number(p.totalBought ?? p.size ?? 0);
+                    const avg = Number(p.avgPrice);
+                    const cur = Number(p.curPrice);
+                    if (shares && !isNaN(avg) && !isNaN(cur)) {
+                        p.realizedPnl = shares * (cur - avg);
+                    }
+                }
+            });
+
             // Filtrar abiertas al periodo elegido (no se pueden cortar al paginar
             // porque la API solo las ordena por tamaño, así que se filtran aquí).
             if (sinceTs != null) {

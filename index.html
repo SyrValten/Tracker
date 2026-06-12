@@ -39,16 +39,15 @@
                         <input type="text" id="walletInput" placeholder="Ej. 0x...">
                         <button id="searchBtn">Buscar Wallet</button>
                     </div>
-                    <label class="quick-load-label" for="loadPeriodSelect"
-                           style="display:flex; align-items:center; gap:8px; margin-top:8px; font-size:13px;">
-                        Cargar periodo:
-                        <select id="loadPeriodSelect" style="padding:4px 8px; border-radius:6px;">
-                            <option value="1">Últimas 24h (más rápido)</option>
+                    <div class="load-period-row">
+                        <label class="load-period-label" for="loadPeriodSelect">Cargar periodo</label>
+                        <select id="loadPeriodSelect" class="load-period-select">
+                            <option value="1">Últimas 24h · más rápido</option>
                             <option value="7">Última semana</option>
                             <option value="30">Último mes</option>
-                            <option value="0">Todo (más lento)</option>
+                            <option value="0">Todo · más lento</option>
                         </select>
-                    </label>
+                    </div>
                 </div>
 
                 <div class="error-message" id="errorMessage"></div>
@@ -224,6 +223,18 @@
                 const next = document.body.classList.contains('dark') ? 'light' : 'dark';
                 localStorage.setItem('theme', next);
                 applyTheme(next);
+            });
+        })();
+
+        // Selector de periodo de carga: recuerda la última elección (localStorage).
+        // Primera vez (sin guardado) → "Todo".
+        (function() {
+            const sel = document.getElementById('loadPeriodSelect');
+            if (!sel) return;
+            const saved = localStorage.getItem('loadPeriod');
+            sel.value = (saved !== null) ? saved : '0';   // default: Todo
+            sel.addEventListener('change', () => {
+                localStorage.setItem('loadPeriod', sel.value);
             });
         })();
     </script>
