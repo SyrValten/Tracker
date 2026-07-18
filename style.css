@@ -122,6 +122,14 @@ body {
     transform: translateY(-1px);
 }
 
+/* Wallet que se está viendo ahora mismo: contorno azul, igual que en el
+   tracker de partidos, para localizarla de un vistazo en la lista. */
+.favorite-item.active {
+    border-color: #2563eb;
+    background: #eff5ff;
+    box-shadow: 0 0 0 1px #2563eb inset;
+}
+
 .favorite-item.dragging {
     opacity: 0.6;
 }
@@ -1147,6 +1155,35 @@ tr:last-child td {
     font-size: 0.95rem;
 }
 
+/* Jerarquía de cabeceras: el PARTIDO manda (fondo más oscuro y franja lateral)
+   y debajo cuelgan sus patas, en un tono más suave. Sin esta diferencia las
+   dos cabeceras pesaban igual y el bloque se leía plano. */
+.group-title.event-title {
+    background: #dde5ee;
+}
+.group-title.event-title .title-cell {
+    border-left: 3px solid #64748b;
+    font-size: 1rem;
+}
+.group-title.leg-title {
+    background: #f6f8fb;
+}
+.group-title.leg-title .title-cell {
+    padding-left: 1.5rem !important;
+    font-weight: 500;
+    font-size: 0.88rem;
+    color: #475569;
+}
+
+body.dark .group-title.event-title,
+:root[data-theme="dark"] .group-title.event-title { background: #1e293b !important; }
+body.dark .group-title.event-title .title-cell,
+:root[data-theme="dark"] .group-title.event-title .title-cell { border-left-color: #94a3b8; }
+body.dark .group-title.leg-title,
+:root[data-theme="dark"] .group-title.leg-title { background: #172033 !important; }
+body.dark .group-title.leg-title .title-cell,
+:root[data-theme="dark"] .group-title.leg-title .title-cell { color: #94a3b8 !important; }
+
 .loading {
     position: fixed;
     bottom: 2rem;
@@ -1743,6 +1780,14 @@ td .text-right:has(>) {
     z-index: 9999;
 }
 .theme-toggle:hover { transform: translateY(-1px); }
+
+/* Acceso al tracker de partidos: mismo estilo que el botón de tema, a su lado */
+.three-way-link {
+    right: 56px;
+    text-decoration: none;
+    line-height: 1;
+    display: inline-block;
+}
 
 /* Dark mode overrides */
 body.dark {
@@ -2377,4 +2422,327 @@ body.dark .open-badge {
 html[data-theme="dark"] .open-row,
 body.dark .open-row {
     background-color: rgba(34, 197, 94, 0.08);
+}
+
+/* ==========================================================================
+   TEMA OSCURO UNIFICADO con tracker_3way.html
+   Paleta: fondo #0d1117 · paneles #161b22 / #1c2230 · líneas #2a3242
+           texto #e6edf3 / #8b949e · verde #3fb950 · rojo #f85149 · azul #58a6ff
+   Va al FINAL del archivo a propósito: reescribe la paleta anterior (azul
+   pizarra) sin tener que tocar una por una las ~160 reglas oscuras de arriba.
+   Necesita !important porque las reglas que sustituye también lo usan.
+   ========================================================================== */
+:root[data-theme="dark"],
+body.dark {
+    --bg: #0d1117;
+    --card: #161b22;
+    --panel: #161b22;
+    --text: #e6edf3;
+    --muted: #8b949e;
+    --border: #2a3242;
+}
+
+:root[data-theme="dark"] body,
+body.dark {
+    background: #0d1117 !important;
+    color: #e6edf3 !important;
+}
+
+/* Superficies: todo lo que era una "tarjeta" pasa al panel nuevo */
+:root[data-theme="dark"] .container,
+:root[data-theme="dark"] .dashboard,
+:root[data-theme="dark"] .profile-card,
+:root[data-theme="dark"] .analysis-card,
+:root[data-theme="dark"] .table-container,
+:root[data-theme="dark"] .raw-container,
+:root[data-theme="dark"] .cards-container,
+:root[data-theme="dark"] .leaderboard-card,
+:root[data-theme="dark"] .chart-wrapper,
+:root[data-theme="dark"] .modal-chart-wrapper,
+:root[data-theme="dark"] .modal-content,
+:root[data-theme="dark"] .modal-header,
+:root[data-theme="dark"] .search-card,
+:root[data-theme="dark"] .sidebar,
+:root[data-theme="dark"] .favorites-list,
+:root[data-theme="dark"] .calendar-day,
+:root[data-theme="dark"] .calendar-header-row,
+:root[data-theme="dark"] .preset-btn {
+    background: #161b22 !important;
+    border-color: #2a3242 !important;
+    color: #e6edf3 !important;
+}
+
+:root[data-theme="dark"] table,
+:root[data-theme="dark"] th,
+:root[data-theme="dark"] td {
+    background: #161b22 !important;
+    color: #e6edf3 !important;
+    border-color: #2a3242 !important;
+}
+:root[data-theme="dark"] th {
+    color: #8b949e !important;
+}
+
+/* Cabeceras de partido y de pata, sobre la paleta nueva */
+:root[data-theme="dark"] .group-title.event-title,
+:root[data-theme="dark"] .group-title.event-title td {
+    background: #1c2230 !important;
+}
+:root[data-theme="dark"] .group-title.event-title .title-cell {
+    border-left-color: #58a6ff !important;
+    color: #e6edf3 !important;
+}
+:root[data-theme="dark"] .group-title.leg-title,
+:root[data-theme="dark"] .group-title.leg-title td {
+    background: #12171f !important;
+}
+:root[data-theme="dark"] .group-title.leg-title .title-cell {
+    color: #8b949e !important;
+}
+:root[data-theme="dark"] .group-title:not(.event-title):not(.leg-title),
+:root[data-theme="dark"] .group-title:not(.event-title):not(.leg-title) td {
+    background: #1c2230 !important;
+}
+:root[data-theme="dark"] .group-separator td {
+    background: #0d1117 !important;
+    border-color: #2a3242 !important;
+}
+
+/* Texto secundario, códigos y enlaces */
+:root[data-theme="dark"] .subtitle,
+:root[data-theme="dark"] .favorite-address,
+:root[data-theme="dark"] .favorite-empty,
+:root[data-theme="dark"] .load-period-label,
+:root[data-theme="dark"] small {
+    color: #8b949e !important;
+}
+:root[data-theme="dark"] code,
+:root[data-theme="dark"] .slug {
+    background: #1c2230 !important;
+    color: #8b949e !important;
+    border-color: #2a3242 !important;
+}
+:root[data-theme="dark"] a { color: #58a6ff !important; }
+
+/* Verdes y rojos del P&L */
+:root[data-theme="dark"] .pnl-positive,
+:root[data-theme="dark"] .positive { color: #3fb950 !important; }
+:root[data-theme="dark"] .pnl-negative,
+:root[data-theme="dark"] .negative { color: #f85149 !important; }
+
+/* Controles */
+:root[data-theme="dark"] input,
+:root[data-theme="dark"] select,
+:root[data-theme="dark"] .favorite-item,
+:root[data-theme="dark"] .tab-button,
+:root[data-theme="dark"] .lb-tab-button,
+:root[data-theme="dark"] .chart-mode-btn,
+:root[data-theme="dark"] .calendar-nav-btn,
+:root[data-theme="dark"] .favorite-edit-btn,
+:root[data-theme="dark"] .copy-wallet-btn {
+    background: #1c2230 !important;
+    color: #e6edf3 !important;
+    border-color: #2a3242 !important;
+}
+:root[data-theme="dark"] .tab-button.active,
+:root[data-theme="dark"] .lb-tab-button.active,
+:root[data-theme="dark"] .favorite-item.active {
+    background: rgba(88,166,255,0.14) !important;
+    border-color: #58a6ff !important;
+    color: #e6edf3 !important;
+}
+:root[data-theme="dark"] .favorite-item:hover,
+:root[data-theme="dark"] .tab-button:hover {
+    border-color: #58a6ff !important;
+}
+
+/* --- Rincones que se habían quedado con la paleta antigua -----------------
+   Detectados recorriendo el DOM en oscuro y listando todo lo que no usaba
+   los colores nuevos. Eran cajas internas (#0f172a / #0b1220), una cabecera
+   que seguía en blanco (#f8fafc) y títulos con texto casi negro sobre fondo
+   negro, que resultaban ilegibles. */
+:root[data-theme="dark"] html,
+:root[data-theme="dark"] .stat-item,
+:root[data-theme="dark"] .stat-box,
+:root[data-theme="dark"] .search-section,
+:root[data-theme="dark"] .search-card-title,
+:root[data-theme="dark"] .profile-wallet-row,
+:root[data-theme="dark"] .favorite-empty,
+:root[data-theme="dark"] .raw-empty,
+:root[data-theme="dark"] .raw-header,
+:root[data-theme="dark"] .raw-json,
+:root[data-theme="dark"] .load-period-row,
+:root[data-theme="dark"] .profile-info,
+:root[data-theme="dark"] .summary-card,
+:root[data-theme="dark"] .metric-card {
+    background: #1c2230 !important;
+    border-color: #2a3242 !important;
+    color: #e6edf3 !important;
+}
+
+/* Títulos: el color oscuro heredado del tema claro los volvía ilegibles */
+:root[data-theme="dark"] h1,
+:root[data-theme="dark"] h2,
+:root[data-theme="dark"] h3,
+:root[data-theme="dark"] h4,
+:root[data-theme="dark"] .card-title,
+:root[data-theme="dark"] .chart-title,
+:root[data-theme="dark"] .stat-value,
+:root[data-theme="dark"] .search-card-title {
+    color: #e6edf3 !important;
+}
+:root[data-theme="dark"] .stat-label,
+:root[data-theme="dark"] label {
+    color: #8b949e !important;
+}
+
+/* Filas de tabla: los tintes azul pizarra pasan a la paleta nueva */
+:root[data-theme="dark"] .closed-row,
+:root[data-theme="dark"] .closed-row td {
+    background: rgba(139, 148, 158, 0.06) !important;
+}
+:root[data-theme="dark"] .open-row,
+:root[data-theme="dark"] .open-row td {
+    background: rgba(63, 185, 80, 0.08) !important;
+}
+:root[data-theme="dark"] tbody tr:hover td {
+    background: #1c2230 !important;
+}
+
+/* Controles que seguían en el azul viejo */
+:root[data-theme="dark"] input,
+:root[data-theme="dark"] select,
+:root[data-theme="dark"] button:not(.theme-toggle),
+:root[data-theme="dark"] th {
+    background: #1c2230 !important;
+    color: #e6edf3 !important;
+    border-color: #2a3242 !important;
+}
+:root[data-theme="dark"] th { color: #8b949e !important; }
+:root[data-theme="dark"] input::placeholder { color: #8b949e !important; }
+
+/* Avisos y errores, legibles sobre fondo oscuro */
+:root[data-theme="dark"] .error-message {
+    background: rgba(248, 81, 73, 0.12) !important;
+    border-color: #f85149 !important;
+    color: #f85149 !important;
+}
+:root[data-theme="dark"] .open-badge {
+    background: rgba(88, 166, 255, 0.14) !important;
+    color: #58a6ff !important;
+}
+
+/* --- Últimos rezagados ----------------------------------------------------
+   Estos tenían reglas oscuras MÁS específicas más arriba
+   (p.ej. ".search-section input" o ".calendar-table th"), así que las
+   genéricas de los bloques anteriores no les llegaban. Se repiten aquí con
+   la especificidad suficiente para ganarles. */
+html:root[data-theme="dark"],
+html[data-theme="dark"] body {
+    background: #0d1117 !important;
+}
+html:root[data-theme="dark"] .search-section input,
+html:root[data-theme="dark"] #walletInput,
+html:root[data-theme="dark"] .favorite-name-input,
+html:root[data-theme="dark"] .favorite-add input {
+    background: #1c2230 !important;
+    color: #e6edf3 !important;
+    border-color: #2a3242 !important;
+}
+html:root[data-theme="dark"] .calendar-table th,
+html:root[data-theme="dark"] .calendar-table td,
+html:root[data-theme="dark"] .calendar-week-summary,
+html:root[data-theme="dark"] .wallet-value,
+html:root[data-theme="dark"] .value-card,
+html:root[data-theme="dark"] .tabs,
+html:root[data-theme="dark"] .main-tabs {
+    background: #1c2230 !important;
+    border-color: #2a3242 !important;
+    color: #e6edf3 !important;
+}
+html:root[data-theme="dark"] .calendar-table th {
+    color: #8b949e !important;
+}
+
+/* Calendario y ficha de perfil: últimos restos detectados recorriendo pestañas */
+html:root[data-theme="dark"] .calendar-title,
+html:root[data-theme="dark"] .calendar-table-wrapper,
+html:root[data-theme="dark"] .calendar-table,
+html:root[data-theme="dark"] .calendar-panel,
+html:root[data-theme="dark"] .week-summary-row,
+html:root[data-theme="dark"] .week-summary-row.month-total {
+    background: #1c2230 !important;
+    border-color: #2a3242 !important;
+    color: #e6edf3 !important;
+}
+/* Días con pérdida/ganancia: mismos rojo y verde que el resto de la app */
+html:root[data-theme="dark"] .calendar-day.negative {
+    background: rgba(248, 81, 73, 0.16) !important;
+    border-color: rgba(248, 81, 73, 0.35) !important;
+}
+html:root[data-theme="dark"] .calendar-day.positive {
+    background: rgba(63, 185, 80, 0.16) !important;
+    border-color: rgba(63, 185, 80, 0.35) !important;
+}
+html:root[data-theme="dark"] .profile-name,
+html:root[data-theme="dark"] .profile-wallet-row,
+html:root[data-theme="dark"] .profile-wallet-row * {
+    color: #e6edf3 !important;
+}
+
+/* --- Favoritos: el texto llevaba su propia caja -------------------------
+   .favorite-name y .favorite-address tenían fondo propio (#0f172a), que en
+   oscuro dibujaba un recuadro azul grisáceo detrás del nombre y de la
+   dirección. Deben ser transparentes y dejar ver la tarjeta. */
+html:root[data-theme="dark"] .favorite-name,
+html:root[data-theme="dark"] .favorite-address,
+html:root[data-theme="dark"] .favorite-card-header,
+html:root[data-theme="dark"] .favorite-item > div {
+    background: transparent !important;
+}
+html:root[data-theme="dark"] .favorite-address {
+    color: #8b949e !important;
+}
+
+/* --- Filas abiertas / cerradas: SIN distintivo de color -------------------
+   El tinte de .open-row / .closed-row marcaba el ESTADO (abierta / cerrada),
+   pero en una tabla de P&L el verde se leía como "en ganancia": una pata
+   perdiendo -$11.40 salía verde. Se quita del todo: todas las filas iguales.
+   El estado ya se deduce de la columna de fecha y del P&L.
+   Se aplica a los DOS temas para que no quede incoherente entre ellos.
+   OJO: hay que anular también el <tr>, no sólo los <td>. El tinte estaba
+   puesto sobre la FILA, así que con las celdas en transparente el color de
+   la fila seguía viéndose a través de ellas. */
+.open-row, .open-row td,
+.closed-row, .closed-row td,
+html:root[data-theme="dark"] .open-row,
+html:root[data-theme="dark"] .closed-row,
+html:root[data-theme="dark"] tr.open-row,
+html:root[data-theme="dark"] tr.closed-row,
+html:root[data-theme="dark"] .open-row td,
+html:root[data-theme="dark"] .closed-row td,
+html:root[data-theme="dark"] tr.open-row td,
+html:root[data-theme="dark"] tr.closed-row td {
+    background: transparent !important;
+    box-shadow: none !important;
+}
+
+/* Hover uniforme: un velo suave que no depende del tipo de fila, así nada
+   "cambia de color" de forma aparentemente aleatoria al pasar el ratón. */
+html:root[data-theme="dark"] tbody tr:hover td {
+    background-color: transparent !important;
+    background-image: linear-gradient(rgba(255,255,255,0.05), rgba(255,255,255,0.05)) !important;
+}
+html:root[data-theme="dark"] tbody tr.group-title:hover td,
+html:root[data-theme="dark"] tbody tr.group-separator:hover td {
+    background-image: none !important;
+}
+html:root[data-theme="dark"] tbody tr.group-title.event-title:hover td {
+    background-color: #1c2230 !important;
+}
+html:root[data-theme="dark"] tbody tr.group-title.leg-title:hover td {
+    background-color: #12171f !important;
+}
+html:root[data-theme="dark"] tbody tr.group-separator:hover td {
+    background-color: #0d1117 !important;
 }

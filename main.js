@@ -343,6 +343,31 @@ class App {
         } catch (error) {
             console.warn('No se pudo actualizar la URL:', error);
         }
+        this.updateThreeWayLink(wallet);
+    }
+
+    // El botón ⚽ abre el tracker de partidos con la wallet actual Y con la lista
+    // de favoritos incrustada en la URL. Lo segundo es a propósito: abriendo las
+    // páginas como archivo local (file://) el navegador puede aislar el
+    // localStorage entre documentos, y entonces el otro tracker veía la lista
+    // vacía aunque aquí hubiera favoritos guardados. Yendo por la URL funciona
+    // siempre, y allí se guardan para las siguientes visitas.
+    updateThreeWayLink(wallet) {
+        const link = document.getElementById('threeWayLink');
+        if (!link) return;
+        const params = new URLSearchParams();
+        if (wallet) params.set('wallet', wallet);
+        if (this.favorites && this.favorites.length) {
+            try {
+                params.set('favs', JSON.stringify(
+                    this.favorites.map(f => ({ w: f.wallet, l: f.label }))
+                ));
+            } catch (e) {
+                console.warn('No se pudieron pasar los favoritos al tracker de partidos:', e);
+            }
+        }
+        const qs = params.toString();
+        link.href = 'tracker_3way.html' + (qs ? '?' + qs : '');
     }
 
     initUrl() {
@@ -361,6 +386,8 @@ class App {
     }
 
     renderFavorites() {
+        // Mantener el enlace ⚽ al día: la lista viaja en su URL.
+        this.updateThreeWayLink(this.currentWallet);
         if (!this.favoritesList) return;
         this.favoritesList.innerHTML = '';
 
@@ -371,9 +398,14 @@ class App {
 
         const isEditMode = this.favoritesEditMode;
 
+        const current = (this.currentWallet || '').toLowerCase();
+
         this.favorites.forEach((favorite) => {
             const item = document.createElement('div');
-            item.className = 'favorite-item';
+            // Se resalta la wallet que se está viendo, igual que en el tracker
+            // de partidos, para saber de un vistazo cuál está cargada.
+            const isCurrent = current && favorite.wallet.toLowerCase() === current;
+            item.className = 'favorite-item' + (isCurrent ? ' active' : '');
             item.dataset.wallet = favorite.wallet;
             item.draggable = !!isEditMode;
 
@@ -606,12 +638,154 @@ class App {
         return date.getTime();
     }
 
-    getConsolidatedItemTimestamp(item) {
-        if (item.closeTimestamp) return Number(item.closeTimestamp) * 1000;
-        if (item.timestamp) return Number(item.timestamp) * 1000;
-        const titleTime = this.parseTitleDateTime(item.title);
-        if (titleTime > 0) return titleTime;
+    // Fecha (epoch en SEGUNDOS) de una posición, con todos los fallbacks.
+    // Vive en un único sitio a propósito: este cálculo estaba duplicado en tres
+    // lugares y a cada copia le faltaba algún caso, lo que hacía desaparecer
+    // posiciones. En concreto, las ABIERTAS no traen `timestamp`, y si el slug
+    // no acaba en epoch (los deportivos acaban en "-draw", "-vol"...) el
+    // resultado era 0 y cualquier filtro de período las eliminaba.
+    getPositionTimestampSec(p) {
+        if (!p) return 0;
+        const t = Number(p.timestamp || p.closeTimestamp || 0);
+        if (t) return t;
+
+        // Series por slots (cripto up/down): el slug acaba en el epoch del slot.
+        const parts = String(p.slug || '').split('-');
+        const last = Number(parts[parts.length - 1]);
+        if (Number.isFinite(last) && last > 1e9) return last;
+
+        if (p.endDate) {
+            const d = Date.parse(p.endDate);
+            if (!isNaN(d)) return Math.floor(d / 1000);
+        }
+        const titleTime = this.parseTitleDateTime(p.title);
+        if (titleTime > 0) return Math.floor(titleTime / 1000);
         return 0;
+    }
+
+    // Filtro por período a nivel de EVENTO, no de pata suelta.
+    // Motivo: dentro de un mismo 1x2 las patas no se fechan igual. Las
+    // ganadoras se redimen y llevan closeTimestamp (el día que se cobraron),
+    // mientras que la perdedora se queda abierta y sólo tiene endDate (el día
+    // del partido). Con una ventana corta caen a lados distintos del corte y
+    // el evento se parte: se ven las ganadoras y desaparece la perdedora,
+    // dejando un P&L falso en positivo. Si alguna pata entra en el período,
+    // entran todas las de ese evento.
+    filterKeepingWholeEvents(items, cutoffSec) {
+        if (cutoffSec == null || !Array.isArray(items)) return items;
+        const keep = new Set();
+        items.forEach(p => {
+            if (this.getPositionTimestampSec(p) >= cutoffSec) keep.add(this.getEventKey(p));
+        });
+        return items.filter(p => keep.has(this.getEventKey(p)));
+    }
+
+    // --- Libro mayor de efectivo real --------------------------------------
+    // avgPrice*shares NO es lo que se pagó: en la práctica se queda ~1-2% corto
+    // (comisiones/spread). Ej. real: 6.0779 shares a "0.77" costaron $4.7338,
+    // no $4.68. Ese desfase inflaba el P&L de cada pata y, sumado en un 1x2,
+    // convertía un +$0.09 real en un +$0.28 falso. Aquí se reconstruye el
+    // efectivo de verdad a partir de /activity, que es el USDC que se movió.
+    buildActivityLedger(activity) {
+        const ledger = new Map();
+        // eventSlug -> patas que esta wallet llegó a operar. Sirve para saber si
+        // en pantalla falta alguna (la carga por período puede no habérselas
+        // descargado) y avisar en vez de mostrar un P&L incompleto como bueno.
+        const eventLegs = new Map();
+        let oldestTs = Infinity;
+        if (!Array.isArray(activity)) {
+            this.activityLedger = ledger;
+            this.activityEventLegs = eventLegs;
+            this.activityOldestTs = 0;
+            return ledger;
+        }
+
+        activity.forEach(a => {
+            const slug = a.slug;
+            if (!slug) return;
+            const ts = Number(a.timestamp) || 0;
+            if (ts) oldestTs = Math.min(oldestTs, ts);
+
+            if (!ledger.has(slug)) {
+                ledger.set(slug, {
+                    bought: 0, sold: 0, redeemed: 0,
+                    sharesBought: 0, sharesSold: 0
+                });
+            }
+            if (a.type === 'TRADE' && a.eventSlug) {
+                if (!eventLegs.has(a.eventSlug)) eventLegs.set(a.eventSlug, new Set());
+                eventLegs.get(a.eventSlug).add(slug);
+            }
+
+            const L = ledger.get(slug);
+            const usdc = Number(a.usdcSize) || 0;
+            const size = Number(a.size) || 0;
+
+            if (a.type === 'TRADE') {
+                if (a.side === 'SELL') { L.sold += usdc; L.sharesSold += size; }
+                else                   { L.bought += usdc; L.sharesBought += size; }
+            } else if (a.type === 'REDEEM') {
+                L.redeemed += usdc;
+            }
+        });
+
+        this.activityLedger = ledger;
+        this.activityEventLegs = eventLegs;
+        this.activityOldestTs = oldestTs === Infinity ? 0 : oldestTs;
+        return ledger;
+    }
+
+    // ¿Faltan patas de este evento en lo que se ha descargado? Devuelve
+    // {faltan, total} o null si no se puede saber.
+    getMissingLegs(positions) {
+        if (!this.activityEventLegs || !positions || !positions.length) return null;
+        const evSlug = positions[0].eventSlug;
+        const known = this.activityEventLegs.get(evSlug);
+        if (!known) return null;
+        const shown = new Set(positions.map(p => p.slug));
+        const faltan = [...known].filter(s => !shown.has(s));
+        return faltan.length ? { faltan: faltan.length, total: known.size } : null;
+    }
+
+    // Cifras reales de una posición, si el historial de actividad las cubre.
+    // Devuelve null cuando no hay datos fiables, para que el llamante siga
+    // usando los campos de la API en vez de inventarse un número.
+    getTrueFinancials(pos) {
+        if (!this.activityLedger) return null;
+        const L = this.activityLedger.get(pos.slug);
+        if (!L || (!L.bought && !L.sold)) return null;
+
+        // Si la posición es anterior al tramo de actividad descargado, su
+        // historial estaría incompleto y el cálculo saldría mal: mejor no usarlo.
+        const posTime = Number(pos.timestamp) || (pos.endDate ? Date.parse(pos.endDate) / 1000 : 0);
+        if (this.activityOldestTs && posTime && posTime < this.activityOldestTs) return null;
+
+        const invested = L.bought - L.sold;          // efectivo neto puesto
+        const sharesLeft = L.sharesBought - L.sharesSold;
+        const curPrice = Number(pos.curPrice);
+        // Valor vivo: sólo para posiciones abiertas todavía sin redimir.
+        const liveValue = (!L.redeemed && sharesLeft > 0.01 && !isNaN(curPrice))
+            ? sharesLeft * curPrice
+            : 0;
+
+        return {
+            investment: L.bought,                    // bruto comprado
+            netInvested: invested,
+            pnl: L.sold + L.redeemed + liveValue - L.bought
+        };
+    }
+
+    getConsolidatedItemTimestamp(item) {
+        return this.getPositionTimestampSec(item) * 1000;
+    }
+
+    // P&L de una posición prefiriendo el efectivo real de /activity.
+    // Si el libro no la cubre, se recurre a los campos de la API.
+    // Lo usan el calendario y el gráfico, que hasta ahora sumaban siempre el
+    // valor aproximado (avgPrice*shares) y por eso no cuadraban con la tabla.
+    getItemPnlExact(item) {
+        const real = this.getTrueFinancials(item);
+        return real ? real.pnl : this.getConsolidatedItemPnl(item);
     }
 
     getConsolidatedItemPnl(item) {
@@ -651,7 +825,81 @@ class App {
         return Math.abs(this.getConsolidatedItemShares(item)) * Number(item.avgPrice || 0);
     }
 
+    // --- Mercados 3-way / negRisk (deportes 1x2) ---------------------------
+    // Un partido son 3 mercados binarios distintos (local / visitante / empate),
+    // cada uno con su propio slug y conditionId. Lo único que los une es
+    // eventSlug, así que ésa es la clave correcta para agruparlos como UNA
+    // sola apuesta. Sin esto cada pata se veía como una operación suelta.
+    // Se agrupa por eventSlug SÓLO si el slug del mercado es una extensión del
+    // slug del evento (patrón "<evento>-<pata>"), y además se añade la fecha de
+    // cierre a la clave. Ese segundo filtro es la red de seguridad para las
+    // series recurrentes (cripto up/down 5m/hourly): sus slots comparten
+    // eventSlug pero tienen endDate distinto, así que siguen separados.
+    getEventKey(pos) {
+        const slug = pos.slug || '—';
+        const ev = pos.eventSlug;
+        if (!ev || !slug.startsWith(ev + '-')) return slug;
+
+        // Series recurrentes por slots (cripto up/down 5m, hourly...): el slug
+        // acaba en el epoch del slot. Nunca se agrupan: cada slot es su propia
+        // operación y fusionarlas destrozaría la tabla.
+        const parts = slug.split('-');
+        const last = Number(parts[parts.length - 1]);
+        if (Number.isFinite(last) && last > 1e9) return slug;
+
+        // endDate llega en formatos distintos según el endpoint
+        // (/positions "2026-07-20" vs /closed-positions "2026-07-20T00:00:00Z"),
+        // así que se normaliza al día para que ambos casen.
+        const day = String(pos.endDate || '').slice(0, 10) || 'sin-fecha';
+        return `${ev}::${day}`;
+    }
+
+    // Nombre legible del partido a partir de los títulos de sus patas.
+    getEventTitle(positions) {
+        for (const p of positions) {
+            const m = String(p.title || '').match(/^Will (.+?) vs\.? (.+?) end in a draw\?$/i);
+            if (m) return `${m[1]} vs. ${m[2]}`;
+        }
+        const winners = positions
+            .map(p => String(p.title || '').match(/^Will (.+?) win on /i))
+            .filter(Boolean).map(m => m[1]);
+        if (winners.length >= 2) return `${winners[0]} vs. ${winners[1]}`;
+        return positions[0]?.title || '—';
+    }
+
+    // Orden 1x2 dentro de un partido: local, visitante, empate.
+    // El eventSlug es "liga-local-visitante-fecha", así que el sufijo del slug
+    // de cada pata dice cuál es. Antes salían en el orden que devolvía la API,
+    // que variaba entre partidos y hacía difícil compararlos de un vistazo.
+    getLegOrder(pos) {
+        const ev = pos.eventSlug || '';
+        const slug = pos.slug || '';
+        if (!ev || !slug.startsWith(ev + '-')) return 9;
+        const suffix = slug.slice(ev.length + 1);
+        if (suffix === 'draw') return 2;
+        const parts = ev.split('-');
+        if (suffix === parts[1]) return 0;   // local
+        if (suffix === parts[2]) return 1;   // visitante
+        return 3;
+    }
+
+    sortLegs(positions) {
+        return [...positions].sort((a, b) => this.getLegOrder(a) - this.getLegOrder(b));
+    }
+
+    // ¿Es un grupo multi-pata de un mismo evento (no un simple Yes/No)?
+    isMultiLegEvent(positions) {
+        if (!positions || positions.length < 2) return false;
+        const conds = new Set(positions.map(p => p.conditionId).filter(Boolean));
+        return conds.size >= 2;
+    }
+
     getGroupedPnl(items) {
+        // Si el libro de actividad cubre todas las patas, sumar sus cifras
+        // exactas. Reconstruir desde avgPrice aquí desharía esa precisión.
+        if (items.length && items.every(i => this.getTrueFinancials(i))) {
+            return items.reduce((sum, i) => sum + this.getTrueFinancials(i).pnl, 0);
+        }
         if (items.length === 2) {
             const sharesA = this.getConsolidatedItemShares(items[0]);
             const sharesB = this.getConsolidatedItemShares(items[1]);
@@ -670,11 +918,9 @@ class App {
         if (!items || items.length === 0 || period === 'ALL') {
             return items;
         }
-        const cutoff = this.getPeriodCutoff(period);
-        return items.filter(item => {
-            const timestamp = this.getConsolidatedItemTimestamp(item);
-            return timestamp >= cutoff;
-        });
+        // Mismo criterio que en la carga: el corte se aplica por evento entero,
+        // nunca dejando fuera una pata suelta del mismo partido.
+        return this.filterKeepingWholeEvents(items, Math.floor(this.getPeriodCutoff(period) / 1000));
     }
 
     toggleChartMode() {
@@ -845,19 +1091,27 @@ class App {
             return new Date(year, month, day, hour24, minute);
         };
 
+        // Agrupar por EVENTO, no por título: en un 1x2 cada pata tiene su
+        // propio título, así que un partido salía como 3 puntos sueltos.
+        // Y la fecha se saca de getPositionTimestampSec, no sólo del título:
+        // los títulos deportivos no encajan en parseTitleDateTime y devolvían
+        // 0, amontonando todas esas operaciones al principio del gráfico.
         const groupedItems = Array.from(filteredItems.reduce((map, item) => {
-            const title = item.title || '—';
-            if (!map.has(title)) map.set(title, []);
-            map.get(title).push(item);
+            const key = this.getEventKey(item);
+            if (!map.has(key)) map.set(key, []);
+            map.get(key).push(item);
             return map;
-        }, new Map()).entries()).map(([title, items]) => {
-            const timestamps = items.map(i => parseTitleDateTime(i.title || '').getTime() || 0);
+        }, new Map()).entries()).map(([key, items]) => {
+            const timestamps = items
+                .map(i => this.getConsolidatedItemTimestamp(i) || parseTitleDateTime(i.title || '').getTime() || 0)
+                .filter(t => t > 0);
+            const isEvent = this.isMultiLegEvent(items);
             return {
-                title,
+                title: isEvent ? this.getEventTitle(items) : (items[0].title || '—'),
                 items,
-                timestamp: Math.min(...timestamps),
+                timestamp: timestamps.length ? Math.min(...timestamps) : 0,
                 pnl: this.getGroupedPnl(items),
-                slug: items[0].slug || '—',
+                slug: isEvent ? (items[0].eventSlug || items[0].slug || '—') : (items[0].slug || '—'),
                 outcome: items[0].outcome || '—',
                 type: items[0].closeTimestamp ? 'Cerrada' : 'Abierta'
             };
@@ -1061,19 +1315,15 @@ class App {
         try {
             this.currentWallet = wallet;
             this.updateUrl(wallet);
+            // Repintar la lista para mover el resaltado a la wallet cargada.
+            this.renderFavorites();
 
             // Carga por periodo: limita cuánto se descarga (cerradas paran de
             // paginar; abiertas se filtran tras traerlas). 0 = todo.
             const loadDays = Number((document.getElementById('loadPeriodSelect') || {}).value || 0);
             const sinceTs = loadDays > 0 ? (Math.floor(Date.now() / 1000) - loadDays * 86400) : null;
             // timestamp de una posición (campo timestamp o sufijo del slug)
-            const posTs = (p) => {
-                const t = Number(p.timestamp || p.closeTimestamp || 0);
-                if (t) return t;
-                const parts = String(p.slug || '').split('-');
-                const last = Number(parts[parts.length - 1]);
-                return (Number.isFinite(last) && last > 1e9) ? last : 0;
-            };
+            const posTs = (p) => this.getPositionTimestampSec(p);
 
             const [positions, closedPositions, activity, lbDay, lbWeek, lbMonth, lbAll, traded] = await Promise.allSettled([
                 this.api.getPositions(wallet),
@@ -1085,6 +1335,12 @@ class App {
                 this.api.getLeaderboard(wallet, 'ALL'),
                 this.api.getTraded(wallet)
             ]);
+
+            // El libro se construye ANTES de renderizar: consolidado lo usa
+            // para sustituir el P&L aproximado de la API por el real.
+            this.buildActivityLedger(
+                activity.status === 'fulfilled' && Array.isArray(activity.value) ? activity.value : []
+            );
 
             let openPositionsData = positions.status === 'fulfilled' && Array.isArray(positions.value) ? positions.value : [];
             const closedPositionsData = closedPositions.status === 'fulfilled' && Array.isArray(closedPositions.value) ? closedPositions.value : [];
@@ -1107,7 +1363,14 @@ class App {
             // Filtrar abiertas al periodo elegido (no se pueden cortar al paginar
             // porque la API solo las ordena por tamaño, así que se filtran aquí).
             if (sinceTs != null) {
-                openPositionsData = openPositionsData.filter(p => posTs(p) >= sinceTs);
+                // Se decide con abiertas Y cerradas juntas: si una pata ganadora
+                // (cerrada, reciente) entra en la ventana, su pata perdedora
+                // (abierta, fechada el día del partido) tiene que entrar también.
+                const kept = this.filterKeepingWholeEvents(
+                    [...openPositionsData, ...closedPositionsData], sinceTs
+                );
+                const keptKeys = new Set(kept.map(p => this.getEventKey(p)));
+                openPositionsData = openPositionsData.filter(p => keptKeys.has(this.getEventKey(p)));
             }
 
             this.openPositionsData = openPositionsData;
@@ -1184,18 +1447,23 @@ class App {
             return;
         }
 
+        // Agrupar por EVENTO, no por mercado: así las 3 patas de un partido
+        // 1x2 (local / visitante / empate) salen juntas como una sola apuesta.
         const groupedBySlug = {};
         positions.forEach(pos => {
-            const slug = pos.slug || '—';
-            if (!groupedBySlug[slug]) {
-                groupedBySlug[slug] = {
+            const key = this.getEventKey(pos);
+            if (!groupedBySlug[key]) {
+                groupedBySlug[key] = {
                     positions: [],
                     totalCashPnl: 0,
-                    title: pos.title || slug
+                    title: pos.title || key
                 };
             }
-            groupedBySlug[slug].positions.push(pos);
-            groupedBySlug[slug].totalCashPnl += (pos.cashPnl || 0);
+            groupedBySlug[key].positions.push(pos);
+            groupedBySlug[key].totalCashPnl += (pos.cashPnl || 0);
+        });
+        Object.values(groupedBySlug).forEach(g => {
+            g.title = this.getEventTitle(g.positions);
         });
 
         let html = '';
@@ -1222,7 +1490,9 @@ class App {
         });
 
         sortedGroups.forEach(([slug, data]) => {
-            const slugPositions = data.positions;
+            const slugPositions = this.isMultiLegEvent(data.positions)
+                ? this.sortLegs(data.positions)
+                : data.positions;
             const marketTotalCashPnl = data.totalCashPnl || 0;
             if (!isFirst) {
                 html += '<tr class="group-separator"><td colspan="7"></td></tr>';
@@ -1236,11 +1506,21 @@ class App {
                 const currentValue = pos.currentValue || 0;
                 const cashPnl = pos.cashPnl || 0;
                 const percentPnl = pos.percentPnl || 0;
-                const title = pos.title || data.title || '—';
+                const title = data.title || pos.title || '—';
                 const outcome = pos.outcome || '—';
 
+                // "Si gana": PnL del EVENTO entero en el escenario de esta fila.
+                // En un 3-way de apuestas NO, si se da el resultado de esta pata
+                // ella pierde y todas las demás cobran 1$/share. Por eso el
+                // escenario se valora con las shares de las OTRAS patas menos
+                // todo lo invertido en el partido.
                 let ifWin = 0;
-                if (slugPositions.length > 1) {
+                if (this.isMultiLegEvent(slugPositions)) {
+                    const totalInvested = slugPositions.reduce((s, p) => s + (p.initialValue || 0), 0);
+                    const othersPayout = slugPositions.reduce(
+                        (s, p, i) => s + (i === index ? 0 : (p.size || 0)), 0);
+                    ifWin = othersPayout - totalInvested;
+                } else if (slugPositions.length > 1) {
                     const otherPos = slugPositions.find((p, i) => i !== index);
                     if (otherPos) {
                         ifWin = size - initialValue - (otherPos.initialValue || 0);
@@ -1257,7 +1537,8 @@ class App {
                 if (index === 0) {
                     const marketPnlClass = marketTotalCashPnl >= 0 ? 'pnl-positive' : 'pnl-negative';
                     const marketPnlSign = marketTotalCashPnl >= 0 ? '+' : '';
-                    html += '<tr class="group-title"><td colspan="7" class="title-cell">' + title + ' <small class="market-total ' + marketPnlClass + '">(' + marketPnlSign + this.formatCurrency(Math.abs(marketTotalCashPnl)) + ')</small></td></tr>';
+                    const evCls = this.isMultiLegEvent(slugPositions) ? 'group-title event-title' : 'group-title';
+                    html += '<tr class="' + evCls + '"><td colspan="7" class="title-cell">' + title + ' <small class="market-total ' + marketPnlClass + '">(' + marketPnlSign + this.formatCurrency(Math.abs(marketTotalCashPnl)) + ')</small></td></tr>';
                 }
 
                 const curPrice = pos.curPrice || pos.currentValue || 0;
@@ -1267,7 +1548,7 @@ class App {
                 if (outcomeLower.includes('up')) outcomeBadgeClass = 'positive';
                 else if (outcomeLower.includes('down')) outcomeBadgeClass = 'negative';
                 else outcomeBadgeClass = (pnlClass === 'pnl-positive' ? 'positive' : 'negative');
-                html += '<tr><td><code class="slug">' + slug + '</code></td><td><span class="side-badge ' + outcomeBadgeClass + '">' + outcomeText + '</span></td><td class="text-right">' + size.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2}) + '</td><td class="text-right"><div>' + this.formatCurrency(avgPrice) + '</div><small>(' + this.formatCurrency(curPrice) + ')</small></td><td class="text-right">' + this.formatCurrency(initialValue) + '</td><td class="text-right"><div><strong class="' + pnlClass + '">' + pnlSign + this.formatCurrency(Math.abs(cashPnl)) + '</strong></div><small class="' + pnlClass + '">' + percentSign + percentPnl.toFixed(2) + '%</small></td><td class="text-right"><strong class="' + ifWinClass + '">' + ifWin.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2}) + '</strong></td></tr>';
+                html += '<tr><td><code class="slug">' + (pos.slug || slug) + '</code></td><td><span class="side-badge ' + outcomeBadgeClass + '">' + outcomeText + '</span></td><td class="text-right">' + size.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2}) + '</td><td class="text-right"><div>' + this.formatCurrency(avgPrice) + '</div><small>(' + this.formatCurrency(curPrice) + ')</small></td><td class="text-right">' + this.formatCurrency(initialValue) + '</td><td class="text-right"><div><strong class="' + pnlClass + '">' + pnlSign + this.formatCurrency(Math.abs(cashPnl)) + '</strong></div><small class="' + pnlClass + '">' + percentSign + percentPnl.toFixed(2) + '%</small></td><td class="text-right"><strong class="' + ifWinClass + '">' + ifWin.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2}) + '</strong></td></tr>';
             });
         });
 
@@ -1647,14 +1928,16 @@ class App {
             return new Date(yearFromTitle, parsedMonth, day, hour24, minute);
         };
 
+        // Fecha del día en que cae la posición. Antes: título → closeTimestamp
+        // → timestamp; las ABIERTAS no tienen ninguno de los tres, así que
+        // caían en 1970 y el filtro por mes las descartaba. Resultado: las
+        // patas perdedoras sin redimir no contaban en el calendario y los días
+        // salían en verde con más beneficio del real.
         const getCalendarDate = (pos) => {
+            const sec = this.getPositionTimestampSec(pos);
+            if (sec > 0) return new Date(sec * 1000);
             const titleDate = parseTitleDateTime(pos.title || '');
-            if (!isNaN(titleDate.getTime()) && titleDate.getTime() > 0) {
-                return titleDate;
-            }
-            const ts = Number(pos.closeTimestamp ?? pos.timestamp ?? 0) * 1000;
-            const date = new Date(ts);
-            return isNaN(date.getTime()) ? new Date(0) : date;
+            return isNaN(titleDate.getTime()) ? new Date(0) : titleDate;
         };
 
         const profitByDay = new Map();
@@ -1664,7 +1947,7 @@ class App {
             if (isNaN(date.getTime()) || date.getFullYear() !== year || date.getMonth() !== month) return;
             const key = `${date.getFullYear()}-${date.getMonth()}-${date.getDate()}`;
             const current = profitByDay.get(key) || 0;
-            profitByDay.set(key, current + this.getConsolidatedItemPnl(pos));
+            profitByDay.set(key, current + this.getItemPnlExact(pos));
 
             if (!tradesByDay.has(key)) {
                 tradesByDay.set(key, []);

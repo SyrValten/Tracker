@@ -114,9 +114,11 @@ class ConsolidatedTab {
     }
 
     getItemTimestamp(item) {
-        if (item.type === 'closed' && item.closeTimestamp) {
-            return item.closeTimestamp * 1000;
+        // Fuente única en main.js, para no repetir (y desincronizar) los fallbacks.
+        if (this.app && typeof this.app.getPositionTimestampSec === 'function') {
+            return this.app.getPositionTimestampSec(item) * 1000;
         }
+        if (item.type === 'closed' && item.closeTimestamp) return item.closeTimestamp * 1000;
         if (item.title) {
             const titleTime = this.parseTitleDateTime(item.title);
             if (titleTime > 0) return titleTime;
@@ -132,23 +134,41 @@ class ConsolidatedTab {
 
         const marketMap = new Map();
 
+        // Misma clave de evento que Posiciones y Cerradas: las 3 patas de un
+        // partido 1x2 caen en un único bloque en vez de en tres sueltos.
+        const eventKey = (pos) => (this.app && typeof this.app.getEventKey === 'function')
+            ? this.app.getEventKey(pos)
+            : (pos.slug || '—');
+
         if (closedPositions && closedPositions.length > 0) {
             closedPositions.forEach(pos => {
                 const slug = pos.slug || '—';
-                if (!marketMap.has(slug)) {
-                    marketMap.set(slug, {
+                const key = eventKey(pos);
+                if (!marketMap.has(key)) {
+                    marketMap.set(key, {
                         slug: slug,
                         title: pos.title || slug,
+                        rawPositions: [],
                         items: []
                     });
                 }
-                
+                marketMap.get(key).rawPositions.push(pos);
+
                 const totalBought = pos.totalBought || pos.size || 0;
                 const avgPrice = pos.avgPrice || 0;
-                const investment = this.calculateInvestment(totalBought, avgPrice);
-                const realizedPnl = pos.realizedPnl || 0;
-                
-                marketMap.get(slug).items.push({
+                let investment = this.calculateInvestment(totalBought, avgPrice);
+                let realizedPnl = pos.realizedPnl || 0;
+
+                // Preferir el efectivo real de /activity sobre avgPrice*shares.
+                const realClosed = (this.app && typeof this.app.getTrueFinancials === 'function')
+                    ? this.app.getTrueFinancials(pos) : null;
+                if (realClosed) {
+                    investment = realClosed.investment;
+                    realizedPnl = realClosed.pnl;
+                }
+                const exactClosed = !!realClosed;
+
+                marketMap.get(key).items.push({
                     closeTimestamp: pos.closeTimestamp,
                     timestamp: pos.timestamp,
                     outcome: pos.outcome || '—',
@@ -158,7 +178,10 @@ class ConsolidatedTab {
                     pnl: realizedPnl,
                     type: 'closed',
                     title: pos.title,
-                    slug: slug
+                    slug: slug,
+                    eventSlug: pos.eventSlug,
+                    endDate: pos.endDate,
+                    exact: exactClosed
                 });
             });
         }
@@ -166,18 +189,28 @@ class ConsolidatedTab {
         if (openPositions && openPositions.length > 0) {
             openPositions.forEach(pos => {
                 const slug = pos.slug || '—';
-                if (!marketMap.has(slug)) {
-                    marketMap.set(slug, {
+                const key = eventKey(pos);
+                if (!marketMap.has(key)) {
+                    marketMap.set(key, {
                         slug: slug,
                         title: pos.title || slug,
+                        rawPositions: [],
                         items: []
                     });
                 }
-                
-                const investment = this.getOpenInvestment(pos);
-                const unrealizedPnl = this.getUnrealizedPnl(pos);
-                
-                marketMap.get(slug).items.push({
+                marketMap.get(key).rawPositions.push(pos);
+
+                let investment = this.getOpenInvestment(pos);
+                let unrealizedPnl = this.getUnrealizedPnl(pos);
+
+                const realOpen = (this.app && typeof this.app.getTrueFinancials === 'function')
+                    ? this.app.getTrueFinancials(pos) : null;
+                if (realOpen) {
+                    investment = realOpen.investment;
+                    unrealizedPnl = realOpen.pnl;
+                }
+
+                marketMap.get(key).items.push({
                     outcome: pos.outcome || '—',
                     investment: investment,
                     avgPrice: pos.avgPrice || 0,
@@ -188,10 +221,23 @@ class ConsolidatedTab {
                     slug: slug,
                     curPrice: pos.curPrice || pos.currentValue || 0,
                     closeTimestamp: null,
-                    timestamp: null
+                    timestamp: null,
+                    eventSlug: pos.eventSlug,
+                    endDate: pos.endDate,
+                    redeemable: pos.redeemable,
+                    exact: !!realOpen
                 });
             });
         }
+
+        // Título del bloque: nombre del partido cuando hay varias patas.
+        marketMap.forEach(market => {
+            if (this.app && typeof this.app.isMultiLegEvent === 'function'
+                && this.app.isMultiLegEvent(market.rawPositions)) {
+                market.title = this.app.getEventTitle(market.rawPositions);
+                market.isEvent = true;
+            }
+        });
 
         const sortedMarkets = Array.from(marketMap.values()).sort((a, b) => {
             const maxTimestampA = Math.max(...a.items.map(item => this.getItemTimestamp(item)));
@@ -225,6 +271,12 @@ class ConsolidatedTab {
             return '';
         };
         const getGroupPnl = (items) => {
+            // Si todas las patas traen cifras exactas del libro de actividad,
+            // sumarlas directamente: reconstruirlas desde avgPrice sería volver
+            // al número aproximado que se acaba de corregir.
+            if (items.length > 0 && items.every(i => i.exact)) {
+                return items.reduce((sum, item) => sum + (item.pnl || 0), 0);
+            }
             if (items.length === 2) {
                 const sharesA = getTradeShares(items[0]);
                 const sharesB = getTradeShares(items[1]);
@@ -241,11 +293,12 @@ class ConsolidatedTab {
         };
 
         sortedMarkets.forEach(market => {
-            const sortedItems = market.items.sort((a, b) => {
-                const timestampA = this.getItemTimestamp(a);
-                const timestampB = this.getItemTimestamp(b);
-                return timestampB - timestampA;
-            });
+            // Dentro de un partido manda el orden 1x2 (local, visitante, empate),
+            // no la fecha: las 3 patas comparten fecha y el orden de la API
+            // variaba entre partidos. Fuera de eventos, se mantiene por fecha.
+            const sortedItems = market.isEvent && this.app && typeof this.app.getLegOrder === 'function'
+                ? market.items.sort((a, b) => this.app.getLegOrder(a) - this.app.getLegOrder(b))
+                : market.items.sort((a, b) => this.getItemTimestamp(b) - this.getItemTimestamp(a));
 
             const titleGroups = groupByTitle(sortedItems);
             const totalPnl = Object.values(titleGroups).reduce((sum, group) => {
@@ -260,7 +313,16 @@ class ConsolidatedTab {
             }
             isFirst = false;
 
-            html += `<tr class="group-title"><td colspan="7" class="title-cell">${market.title} <small class="market-total ${totalPnlClass}">(${totalPnlFormatted})</small></td></tr>`;
+            // Si la carga por período no trajo todas las patas del partido, el
+            // total mostrado no es el del evento completo. Se avisa en vez de
+            // presentarlo como definitivo.
+            const missing = (this.app && typeof this.app.getMissingLegs === 'function')
+                ? this.app.getMissingLegs(market.rawPositions) : null;
+            const warn = missing
+                ? ` <small class="market-total" style="color:#d29922" title="Faltan ${missing.faltan} de ${missing.total} patas: amplía 'Cargar' a Todo para el P&amp;L exacto">⚠ parcial (${missing.total - missing.faltan}/${missing.total} patas)</small>`
+                : '';
+            const headClass = market.isEvent ? 'group-title event-title' : 'group-title';
+            html += `<tr class="${headClass}"><td colspan="7" class="title-cell">${market.title} <small class="market-total ${totalPnlClass}">(${totalPnlFormatted})</small>${warn}</td></tr>`;
 
             Object.entries(titleGroups).forEach(([groupKey, group]) => {
                 const displayGroupTitle = group.title || groupKey;
@@ -269,7 +331,8 @@ class ConsolidatedTab {
                 const groupPnlClass = groupPnl >= 0 ? 'pnl-positive' : 'pnl-negative';
                 // Avoid repeating the market title as a group header when they're identical
                 if (displayGroupTitle !== market.title) {
-                    html += `<tr class="group-title"><td colspan="7" class="title-cell">${displayGroupTitle} <small class="market-total ${groupPnlClass}">(${groupPnlSign}${this.formatPNL(groupPnl).replace(/<span.*?>(.*)<\/span>/, '$1')})</small></td></tr>`;
+                    const legClass = market.isEvent ? 'group-title leg-title' : 'group-title';
+                    html += `<tr class="${legClass}"><td colspan="7" class="title-cell">${displayGroupTitle} <small class="market-total ${groupPnlClass}">(${groupPnlSign}$${Math.abs(groupPnl).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })})</small></td></tr>`;
                 }
 
                 group.items.forEach(item => {
@@ -293,8 +356,19 @@ class ConsolidatedTab {
                                 hour: '2-digit',
                                 minute: '2-digit'
                             });
+                        } else if (item.endDate) {
+                            // Antes aquí salía un badge "🟢 Abierta" para todo lo
+                            // que no tuviera fecha parseable del título, incluidas
+                            // posiciones ya terminadas pendientes de redimir.
+                            // Se muestra la fecha real de cierre del mercado.
+                            const d = new Date(item.endDate);
+                            dateDisplay = isNaN(d.getTime())
+                                ? '—'
+                                : d.toLocaleDateString('es-ES', {
+                                    day: '2-digit', month: '2-digit', year: 'numeric'
+                                  });
                         } else {
-                            dateDisplay = '<span class="open-badge">🟢 Abierta</span>';
+                            dateDisplay = '—';
                         }
                     }
 
@@ -312,7 +386,7 @@ class ConsolidatedTab {
                     html += `
                         <tr class="${item.type}-row">
                             <td>${dateDisplay}</td>
-                            <td><code class="slug">${market.slug}</code></td>
+                            <td><code class="slug">${item.slug || market.slug}</code></td>
                             <td><span class="side-badge ${outcomeClass}">${item.outcome}</span></td>
                             <td class="text-right"><strong>${this.formatCurrency(item.investment)}</strong></td>
                             <td class="text-right">${avgPriceDisplay}</td>

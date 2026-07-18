@@ -70,14 +70,19 @@ class ClosedPositionsTab {
             return;
         }
 
-        // Agrupar por slug para mantener cada slot de tiempo separado
+        // Agrupar por EVENTO (cada slot de tiempo sigue separado gracias a que
+        // la clave incluye la fecha de cierre). Así las 3 patas de un partido
+        // 1x2 caen en el mismo bloque en vez de quedar dispersas por la tabla.
+        const eventKey = (pos) => (this.app && typeof this.app.getEventKey === 'function')
+            ? this.app.getEventKey(pos)
+            : (pos.slug || '—');
         const groupedBySlug = {};
         positions.forEach(pos => {
-            const slug = pos.slug || '—';
-            if (!groupedBySlug[slug]) {
-                groupedBySlug[slug] = [];
+            const key = eventKey(pos);
+            if (!groupedBySlug[key]) {
+                groupedBySlug[key] = [];
             }
-            groupedBySlug[slug].push(pos);
+            groupedBySlug[key].push(pos);
         });
 
         // Función para parsear fecha y hora del título (fallback si no hay timestamp)
@@ -145,15 +150,32 @@ class ClosedPositionsTab {
         let isFirst = true;
 
         sortedMarketEntries.forEach(({ slug, slugPositions, marketName }) => {
-            slugPositions.sort((a, b) => {
+            const isEvent = this.app && typeof this.app.isMultiLegEvent === 'function'
+                && this.app.isMultiLegEvent(slugPositions);
+            if (isEvent) {
+                // Orden 1x2 dentro del partido (local, visitante, empate).
+                slugPositions.sort((a, b) => this.app.getLegOrder(a) - this.app.getLegOrder(b));
+            } else {
                 // Más reciente primero, usando el timestamp real de cierre
-                return getMarketTime(b) - getMarketTime(a);
-            });
+                slugPositions.sort((a, b) => getMarketTime(b) - getMarketTime(a));
+            }
 
             if (!isFirst) {
                 html += '<tr class="group-separator"><td colspan="7"></td></tr>';
             }
             isFirst = false;
+
+            // Cabecera del partido cuando el bloque tiene varias patas (1x2),
+            // con el PnL agregado del evento entero.
+            if (this.app && typeof this.app.isMultiLegEvent === 'function'
+                && this.app.isMultiLegEvent(slugPositions)) {
+                const evPnl = slugPositions.reduce((s, p) => s + (p.realizedPnl || 0), 0);
+                const evClass = evPnl >= 0 ? 'pnl-positive' : 'pnl-negative';
+                const evName = this.app.getEventTitle(slugPositions);
+                html += `<tr class="group-title event-title"><td colspan="7" class="title-cell">⚽ ${evName}
+                    <small class="market-total ${evClass}">(${evPnl >= 0 ? '+' : '-'}$${this.formatNumber(Math.abs(evPnl))})</small>
+                    <small class="market-total">· ${slugPositions.length} patas</small></td></tr>`;
+            }
 
             const titleGroups = groupedByTitleInSlug(slugPositions);
             titleGroups.forEach(([groupTitle, positions]) => {
@@ -162,7 +184,7 @@ class ClosedPositionsTab {
                     : positions.reduce((sum, pos) => sum + (pos.realizedPnl || 0), 0);
                 const groupPnlSign = groupPnl >= 0 ? '+' : '-';
                 const groupPnlClass = groupPnl >= 0 ? 'pnl-positive' : 'pnl-negative';
-                html += `<tr class="group-title"><td colspan="7" class="title-cell">${groupTitle} <small class="market-total ${groupPnlClass}">(${groupPnlSign}${this.formatPNL(groupPnl).replace(/<span.*?>(.*)<\/span>/, '$1')})</small></td></tr>`;
+                html += `<tr class="group-title"><td colspan="7" class="title-cell">${groupTitle} <small class="market-total ${groupPnlClass}">(${groupPnlSign}$${this.formatNumber(Math.abs(groupPnl))})</small></td></tr>`;
 
                 positions.forEach(pos => {
                     const timestamp = pos.closeTimestamp || pos.timestamp;
@@ -179,7 +201,7 @@ class ClosedPositionsTab {
                     html += `
             <tr>
                 <td>${this.formatDate(timestamp)}</td>
-                <td><a href="https://polymarket.com/event/${slug}" target="_blank" rel="noopener noreferrer"><code class="slug">${slug}</code></a></td>
+                <td><a href="https://polymarket.com/event/${pos.eventSlug || pos.slug || slug}" target="_blank" rel="noopener noreferrer"><code class="slug">${pos.slug || slug}</code></a></td>
                 <td><span class="side-badge ${dotClass}">${outcomeText}</span></td>
                 <td class="text-right"><strong>$${this.formatNumber(investment)}</strong></td>
                 <td class="text-right">${this.formatPriceInCents(avgPrice)}</td>

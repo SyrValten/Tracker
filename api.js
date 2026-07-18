@@ -112,10 +112,13 @@ class PolymarketAPI {
         return this.fetchAllClosedPositions(user, 50, sinceTs);
     }
 
-    async fetchAllActivity(user, pageSize = 50) {
+    async fetchAllActivity(user, pageSize = 100) {
         const results = [];
         let offset = 0;
-        const maxPages = 20; // proteger contra bucles infinitos, hasta 1000 actividades
+        // El P&L real se reconstruye desde aquí (el USDC de /activity es el
+        // efectivo de verdad; avgPrice*shares se deja comisiones por el camino),
+        // así que conviene traer bastante historial: 100 x 100 = 10.000 eventos.
+        const maxPages = 100;
 
         for (let page = 0; page < maxPages; page++) {
             const pageData = await this.fetchFromAPI('/activity', {
@@ -141,7 +144,7 @@ class PolymarketAPI {
     }
 
     async getActivity(user) {
-        return this.fetchAllActivity(user, 50);
+        return this.fetchAllActivity(user, 100);
     }
 
     async getTotalValue(user) {
