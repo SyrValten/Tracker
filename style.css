@@ -2746,3 +2746,29 @@ html:root[data-theme="dark"] tbody tr.group-title.leg-title:hover td {
 html:root[data-theme="dark"] tbody tr.group-separator:hover td {
     background-color: #0d1117 !important;
 }
+
+/* --- Pestaña Estrategia Multi Edge --------------------------------------- */
+.me-summary {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 0.6rem;
+    margin: 0 0 1rem;
+}
+.me-stat {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    padding: 0.7rem 0.9rem;
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
+    background: #f8fafc;
+}
+.me-k { font-size: 0.7rem; text-transform: uppercase; letter-spacing: .5px; color: #64748b; }
+.me-v { font-size: 1.15rem; font-weight: 700; }
+
+html:root[data-theme="dark"] .me-stat {
+    background: #1c2230 !important;
+    border-color: #2a3242 !important;
+}
+html:root[data-theme="dark"] .me-k { color: #8b949e !important; }
+html:root[data-theme="dark"] .me-v { color: #e6edf3 !important; }

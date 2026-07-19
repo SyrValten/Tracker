@@ -126,6 +126,7 @@
                         <button class="tab-button" data-tab="closed">📉 Cerradas</button>
                         <button class="tab-button" data-tab="consolidated">📋 Consolidado</button>
                         <button class="tab-button" data-tab="calendar">📅 Calendario</button>
+                        <button class="tab-button" data-tab="multiedge">🎯 Estrategia Multi Edge</button>
                     </div>
 
                     <div id="positions" class="tab-content active">
@@ -183,6 +184,31 @@
                         </div>
                     </div>
 
+                    <div id="multiedge" class="tab-content">
+                        <div class="raw-header">
+                            <h3>🎯 Estrategia Multi Edge</h3>
+                            <p class="raw-subtitle">Agrupa por ventana temporal: las operaciones del mismo slot se ven juntas aunque sean de activos distintos (Solana, Bitcoin…). Incluye posiciones abiertas y cerradas.</p>
+                        </div>
+                        <div class="table-container">
+                            <table>
+                                <thead>
+                                    <tr>
+                                        <th>Fecha</th>
+                                        <th>Activo / Slug</th>
+                                        <th>Outcome</th>
+                                        <th class="text-right">Inv. ($)</th>
+                                        <th class="text-right">Avg Price</th>
+                                        <th class="text-right">Shares</th>
+                                        <th class="text-right">PNL</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="multiedgeBody">
+                                    <tr><td colspan="7" class="empty-state">Busca una wallet para ver la estrategia</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
                     <div id="raw-positions" class="tab-content"><div class="raw-header"><h3>📦 /positions - RAW JSON</h3><p class="raw-subtitle">Respuesta exacta del endpoint de posiciones abiertas</p></div><div id="rawPositionsContent" class="raw-container"><pre class="raw-empty">Busca una wallet para ver los datos RAW</pre></div></div>
                     <div id="raw-activity" class="tab-content"><div class="raw-header"><h3>📦 /activity - RAW JSON</h3><p class="raw-subtitle">Respuesta exacta del endpoint de actividad</p></div><div id="rawActivityContent" class="raw-container"><pre class="raw-empty">Busca una wallet para ver los datos RAW</pre></div></div>
                     <div id="raw-closed" class="tab-content"><div class="raw-header"><h3>📦 /closed-positions - RAW JSON</h3><p class="raw-subtitle">Respuesta exacta del endpoint de posiciones cerradas</p></div><div id="rawClosedContent" class="raw-container"><pre class="raw-empty">Busca una wallet para ver los datos RAW</pre></div></div>
@@ -200,6 +226,7 @@
     <script src="activity.js"></script>
     <script src="closed.js"></script>
     <script src="consolidated.js"></script>
+    <script src="multiedge.js"></script>
     <script src="main.js"></script>
     
     <script>

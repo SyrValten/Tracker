@@ -116,27 +116,37 @@ class PolymarketAPI {
         const results = [];
         let offset = 0;
         // El P&L real se reconstruye desde aquí (el USDC de /activity es el
-        // efectivo de verdad; avgPrice*shares se deja comisiones por el camino),
-        // así que conviene traer bastante historial: 100 x 100 = 10.000 eventos.
-        const maxPages = 100;
+        // efectivo de verdad; avgPrice*shares se deja comisiones por el camino).
+        //
+        // OJO con el tope: /activity devuelve HTTP 400 a partir de offset ~5000
+        // (comprobado por bisección). Pedir más no trae nada y además rompía la
+        // carga entera: el error se propagaba, la promesa de actividad quedaba
+        // rechazada y el libro se quedaba VACÍO, de modo que las wallets con
+        // mucho historial perdían el P&L exacto sin avisar.
+        const maxOffset = 5000;
 
-        for (let page = 0; page < maxPages; page++) {
-            const pageData = await this.fetchFromAPI('/activity', {
-                user: user,
-                limit: pageSize,
-                offset: offset,
-                sortBy: 'TIMESTAMP',
-                sortDirection: 'DESC'
-            });
-
-            if (!Array.isArray(pageData)) {
-                throw new Error('Respuesta de activity inesperada: se esperaba un array');
-            }
-
-            results.push(...pageData);
-            if (pageData.length < pageSize) {
+        while (offset <= maxOffset) {
+            let pageData;
+            try {
+                pageData = await this.fetchFromAPI('/activity', {
+                    user: user,
+                    limit: pageSize,
+                    offset: offset,
+                    sortBy: 'TIMESTAMP',
+                    sortDirection: 'DESC'
+                });
+            } catch (error) {
+                // Si una página falla, se conserva lo ya descargado en vez de
+                // perderlo todo: con historial parcial el P&L sigue siendo
+                // exacto para las operaciones que sí cubre.
+                console.warn(`/activity cortado en offset ${offset}:`, error.message);
                 break;
             }
+
+            if (!Array.isArray(pageData)) break;
+
+            results.push(...pageData);
+            if (pageData.length < pageSize) break;
             offset += pageSize;
         }
 

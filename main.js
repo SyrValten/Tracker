@@ -36,6 +36,13 @@ class App {
             console.error('Error en ConsolidatedTab:', error);
         }
         
+        try {
+            this.multiEdgeTab = new MultiEdgeTab(this);
+            console.log('MultiEdgeTab creada');
+        } catch (error) {
+            console.error('Error en MultiEdgeTab:', error);
+        }
+
         this.initElements();
         console.log('initElements completado');
         this.loadFavoritesFromStorage();
@@ -569,7 +576,10 @@ class App {
         this.renderLeaderboardByPeriod(period);
         
         // Actualizar el gráfico según la pestaña activa y el período seleccionado
-        if (this.activeTabId === 'consolidated' && this.openPositionsData && this.closedPositionsData) {
+        if (this.activeTabId === 'multiedge') {
+            this.multiEdgeTab && this.multiEdgeTab.render(this.openPositionsData || [], this.closedPositionsData || []);
+            this.renderMultiEdgeChart();
+        } else if (this.activeTabId === 'consolidated' && this.openPositionsData && this.closedPositionsData) {
             const allItems = [...this.openPositionsData, ...this.closedPositionsData];
             const filteredItems = this.filterItemsByPeriod(allItems, period);
             this.renderConsolidatedChart(filteredItems);
@@ -706,27 +716,31 @@ class App {
             const ts = Number(a.timestamp) || 0;
             if (ts) oldestTs = Math.min(oldestTs, ts);
 
-            if (!ledger.has(slug)) {
-                ledger.set(slug, {
+            // CLAVE = asset (el token id), no el slug. Un mismo mercado tiene un
+            // asset por outcome, y hay wallets que compran los DOS lados: con
+            // el slug como clave ambas posiciones compartían entrada y el P&L
+            // se contaba dos veces. Los REDEEM traen asset vacío, así que no se
+            // usan: el valor final se saca de curPrice (1 ganadora / 0 perdedora).
+            const key = a.asset || `${slug}|${a.outcome || ''}`;
+            if (a.type !== 'TRADE') return;
+
+            if (!ledger.has(key)) {
+                ledger.set(key, {
                     bought: 0, sold: 0, redeemed: 0,
                     sharesBought: 0, sharesSold: 0
                 });
             }
-            if (a.type === 'TRADE' && a.eventSlug) {
+            if (a.eventSlug) {
                 if (!eventLegs.has(a.eventSlug)) eventLegs.set(a.eventSlug, new Set());
                 eventLegs.get(a.eventSlug).add(slug);
             }
 
-            const L = ledger.get(slug);
+            const L = ledger.get(key);
             const usdc = Number(a.usdcSize) || 0;
             const size = Number(a.size) || 0;
 
-            if (a.type === 'TRADE') {
-                if (a.side === 'SELL') { L.sold += usdc; L.sharesSold += size; }
-                else                   { L.bought += usdc; L.sharesBought += size; }
-            } else if (a.type === 'REDEEM') {
-                L.redeemed += usdc;
-            }
+            if (a.side === 'SELL') { L.sold += usdc; L.sharesSold += size; }
+            else                   { L.bought += usdc; L.sharesBought += size; }
         });
 
         this.activityLedger = ledger;
@@ -752,7 +766,8 @@ class App {
     // usando los campos de la API en vez de inventarse un número.
     getTrueFinancials(pos) {
         if (!this.activityLedger) return null;
-        const L = this.activityLedger.get(pos.slug);
+        const key = pos.asset || `${pos.slug}|${pos.outcome || ''}`;
+        const L = this.activityLedger.get(key);
         if (!L || (!L.bought && !L.sold)) return null;
 
         // Si la posición es anterior al tramo de actividad descargado, su
@@ -763,15 +778,16 @@ class App {
         const invested = L.bought - L.sold;          // efectivo neto puesto
         const sharesLeft = L.sharesBought - L.sharesSold;
         const curPrice = Number(pos.curPrice);
-        // Valor vivo: sólo para posiciones abiertas todavía sin redimir.
-        const liveValue = (!L.redeemed && sharesLeft > 0.01 && !isNaN(curPrice))
-            ? sharesLeft * curPrice
-            : 0;
+        // Valor de lo que queda en cartera. En un mercado ya resuelto curPrice
+        // es 1 (ganadora) o 0 (perdedora), así que esto cubre por igual las
+        // resueltas y las vivas, sin depender de los REDEEM (que además llegan
+        // con el campo asset vacío y no se pueden atribuir a un outcome).
+        const value = (sharesLeft > 0.0001 && !isNaN(curPrice)) ? sharesLeft * curPrice : 0;
 
         return {
             investment: L.bought,                    // bruto comprado
             netInvested: invested,
-            pnl: L.sold + L.redeemed + liveValue - L.bought
+            pnl: L.sold + value - L.bought
         };
     }
 
@@ -927,7 +943,9 @@ class App {
         this.chartMode = this.chartMode === 'points' ? 'line' : 'points';
         this.updateChartModeButton();
         
-        if (this.activeTabId === 'consolidated' && this.openPositionsData && this.closedPositionsData) {
+        if (this.activeTabId === 'multiedge') {
+            this.renderMultiEdgeChart();
+        } else if (this.activeTabId === 'consolidated' && this.openPositionsData && this.closedPositionsData) {
             const allItems = [...this.openPositionsData, ...this.closedPositionsData];
             const filteredItems = this.filterItemsByPeriod(allItems, this.currentLbPeriod);
             this.renderConsolidatedChart(filteredItems);
@@ -1021,7 +1039,13 @@ class App {
 
         const periodText = this.getPeriodText(this.currentLbPeriod);
         
-        if (tabId === 'consolidated' && this.openPositionsData && this.closedPositionsData) {
+        if (tabId === 'multiedge') {
+            // Se repinta al entrar para reflejar el período de carga vigente.
+            if (this.multiEdgeTab) {
+                this.multiEdgeTab.render(this.openPositionsData || [], this.closedPositionsData || []);
+                this.renderMultiEdgeChart();
+            }
+        } else if (tabId === 'consolidated' && this.openPositionsData && this.closedPositionsData) {
             const allItems = [...this.openPositionsData, ...this.closedPositionsData];
             const filteredItems = this.filterItemsByPeriod(allItems, this.currentLbPeriod);
             this.renderConsolidatedChart(filteredItems);
@@ -1050,7 +1074,33 @@ class App {
     }
 
     // Método para renderizar gráfico consolidado con filtro
-    renderConsolidatedChart(filteredItems) {
+    // Gráfico de la pestaña Multi Edge: un punto por ventana temporal, con el
+    // resultado neto de todos los activos de esa ventana. Sólo se usa cuando
+    // esa pestaña está activa; el resto conservan su gráfico de siempre.
+    renderMultiEdgeChart() {
+        if (!this.multiEdgeTab) return;
+        const abiertas = this.openPositionsData || [];
+        const cerradas = this.closedPositionsData || [];
+        const items = this.filterItemsByPeriod([...abiertas, ...cerradas], this.currentLbPeriod);
+        // Se filtra por período ANTES de agrupar, para que el gráfico y la
+        // tabla hablen del mismo conjunto de operaciones.
+        const enPeriodo = new Set(items.map(p => p.slug + '|' + p.outcome));
+        const grupos = this.multiEdgeTab.getChartGroups(
+            abiertas.filter(p => enPeriodo.has(p.slug + '|' + p.outcome)),
+            cerradas.filter(p => enPeriodo.has(p.slug + '|' + p.outcome))
+        );
+        this.renderConsolidatedChart(items, grupos);
+
+        const header = document.querySelector('.analysis-card .analysis-header h3');
+        if (header) {
+            header.innerHTML = `📈 PNL por ventana (Multi Edge - ${this.getPeriodText(this.currentLbPeriod)})`;
+        }
+    }
+
+    // preGrouped: permite pintar el gráfico con una agrupación ya hecha
+    // (la usa la pestaña Multi Edge para mostrar un punto por VENTANA en vez
+    // de uno por operación suelta). Si no se pasa, agrupa por evento como siempre.
+    renderConsolidatedChart(filteredItems, preGrouped = null) {
         const canvasElement = document.getElementById('closedChart');
         if (!canvasElement) return;
         const ctx = canvasElement.getContext('2d');
@@ -1096,7 +1146,7 @@ class App {
         // Y la fecha se saca de getPositionTimestampSec, no sólo del título:
         // los títulos deportivos no encajan en parseTitleDateTime y devolvían
         // 0, amontonando todas esas operaciones al principio del gráfico.
-        const groupedItems = Array.from(filteredItems.reduce((map, item) => {
+        const groupedItems = preGrouped || Array.from(filteredItems.reduce((map, item) => {
             const key = this.getEventKey(item);
             if (!map.has(key)) map.set(key, []);
             map.get(key).push(item);
@@ -1419,6 +1469,10 @@ class App {
             if (this.consolidatedTab) {
                 this.consolidatedTab.setRawData(openPositionsData, closedPositionsData);
                 this.consolidatedTab.render(openPositionsData, closedPositionsData);
+                if (this.multiEdgeTab) {
+                    this.multiEdgeTab.render(openPositionsData, closedPositionsData);
+                    if (this.activeTabId === 'multiedge') this.renderMultiEdgeChart();
+                }
             }
 
             this.leaderboardData = {
